@@ -26,7 +26,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Recent-services filters
   const [activePreset, setActivePreset] = useState("Recent");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [customFrom, setCustomFrom] = useState("");
@@ -47,13 +46,10 @@ export default function Dashboard() {
     }
   };
 
-  // Initial load — no filters, exactly the original default behavior
   useEffect(() => {
     loadStats();
   }, []);
 
-  // Debounced search — re-runs whenever the search text changes, combined
-  // with whatever date range filter is currently active
   useEffect(() => {
     if (isFirstSearchRender.current) {
       isFirstSearchRender.current = false;
@@ -105,7 +101,74 @@ export default function Dashboard() {
   };
 
   if (loading && !stats) {
-    return <Spinner label="Loading dashboard..." />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F6F2E9] px-6">
+        <div className="max-w-sm w-full flex flex-col items-center text-center">
+          <div className="relative mb-6">
+            <div
+              className="absolute inset-0 rounded-full blur-2xl opacity-60 animate-pulse"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
+              }}
+            />
+            <div
+              className="relative h-20 w-20 rounded-full flex items-center justify-center shadow-lg"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-9 w-9 text-white animate-spin"
+                style={{ animationDuration: "1.4s" }}
+                fill="none"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="9"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  opacity="0.25"
+                />
+                <path
+                  d="M21 12a9 9 0 0 0-9-9"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 mb-5">
+            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+
+          <h2 className="text-[#1F3D2B] text-lg font-bold leading-tight mb-1.5">
+            Loading your dashboard...
+          </h2>
+          <p className="text-[#1F2A22]/60 text-sm font-medium leading-snug mb-0.5">
+            तुमचे डॅशबोर्ड लोड होत आहे...
+          </p>
+
+          <div className="mt-5 bg-white/70 border border-black/[0.05] rounded-2xl px-4 py-3">
+            <p className="text-[#1F2A22]/55 text-xs font-medium leading-relaxed">
+              This can take 20–30 seconds on the first load. Thanks for
+              your patience!
+              <br />
+              <span className="text-[#1F2A22]/45">
+                पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -129,21 +192,16 @@ export default function Dashboard() {
     ? user.name.trim().split(/\s+/).slice(0, 2).map((n) => n[0]).join("").toUpperCase()
     : "";
 
-  // Drop services whose farmer was deleted directly in the DB (populate()
-  // returns null for those). No longer sliced to 15 here — the backend
-  // controls how many rows come back based on the active filter.
   const displayedRecentServices = (stats?.recentServices || [])
     .filter((s) => s.farmer)
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
-  // Helper to format currency in Indian numbering system (e.g., 3,33,567)
   const formatCurrency = (amount) => {
     return Number(amount || 0).toLocaleString("en-IN");
   };
 
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-24 font-sans selection:bg-[#4C9A5A]/20">
-      {/* Header */}
       <div
         className="relative px-6 pt-10 pb-20 overflow-hidden rounded-b-[2.5rem] shadow-sm"
         style={{
@@ -188,7 +246,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stat grid — money totals shown to admin only */}
       {isAdmin && (
         <div className="px-5 -mt-12 relative z-10 max-w-5xl mx-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -206,7 +263,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Recent services — visible to everyone */}
       <div className={`px-5 ${isAdmin ? "mt-8" : "-mt-12 relative z-10"} max-w-5xl mx-auto`}>
         <div className="flex items-end justify-between mb-4 px-1">
           <h2 className="text-lg font-bold text-[#878f87] tracking-tight">Recent Services</h2>
@@ -217,8 +273,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Date filter presets — staff gets a bigger, more modern treatment;
-            admin view is unchanged from before */}
         <div
           className={`flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 ${
             !isAdmin ? "gap-2 mb-4" : ""
@@ -293,7 +347,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Custom range picker */}
         {showCustomRange && (
           <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] p-4 mb-4 space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -329,7 +382,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Search bar — farmer name / village */}
         <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] p-3 flex items-center gap-2.5 mb-4">
           <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-[#1F2A22]/30 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="7" strokeLinecap="round" strokeLinejoin="round" />

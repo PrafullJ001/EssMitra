@@ -15,18 +15,9 @@ export default function StatementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Tracks which service boxes have their payment history expanded
   const [expandedServices, setExpandedServices] = useState(new Set());
-
-  // Tracks whether the UPI QR code is shown full-screen for easier scanning
   const [isQrZoomed, setIsQrZoomed] = useState(false);
-
-  // Tracks whether the zoomed QR image failed to load (shows a clean
-  // placeholder instead of a broken-image icon)
   const [qrZoomImageError, setQrZoomImageError] = useState(false);
-
-  // Single source of truth for the QR image path — put the actual file at
-  // public/upi-qr.png in your frontend so this path resolves correctly.
   const UPI_QR_IMAGE = "/upi-qr.png";
 
   const toggleServiceHistory = (serviceId) => {
@@ -64,7 +55,6 @@ export default function StatementPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F6F2E9] px-6">
         <div className="max-w-sm w-full flex flex-col items-center text-center">
-          {/* Animated icon */}
           <div className="relative mb-6">
             <div
               className="absolute inset-0 rounded-full blur-2xl opacity-60 animate-pulse"
@@ -104,7 +94,6 @@ export default function StatementPage() {
             </div>
           </div>
 
-          {/* Bouncing dots */}
           <div className="flex items-center gap-1.5 mb-5">
             <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "0ms" }} />
             <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -158,12 +147,10 @@ export default function StatementPage() {
   const totalCollected = services.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0);
   const totalPending = services.reduce((sum, s) => sum + Number(s.pendingAmount || 0), 0);
 
-  // Only unpaid/partially-paid services go into the Service History list
   const pendingServices = services.filter((s) => Number(s.pendingAmount || 0) > 0);
 
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-16 font-sans selection:bg-[#4C9A5A]/20">
-      {/* Header — modernized business identity card */}
       <div
         className="relative px-6 pt-10 pb-20 overflow-hidden rounded-b-[2.5rem] shadow-sm"
         style={{ backgroundImage: "linear-gradient(180deg, #1F3D2B 0%, #234730 100%)" }}
@@ -218,7 +205,6 @@ export default function StatementPage() {
       </div>
 
       <div className="px-5 -mt-16 relative z-10 max-w-md mx-auto space-y-4">
-        {/* Profile Card */}
         <div className="bg-white rounded-3xl shadow-sm border border-black/[0.04] p-5">
           <div className="flex gap-4 items-center mb-4">
             <div className="h-14 w-14 rounded-2xl bg-[#E9F3E9] text-[#2B5439] flex items-center justify-center text-lg font-bold shadow-inner border border-[#4C9A5A]/10 shrink-0">
@@ -262,7 +248,6 @@ export default function StatementPage() {
           </div>
         </div>
 
-        {/* Pending Services — each box has its own expandable payment history */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Pending Services Payments</h2>
@@ -291,9 +276,6 @@ export default function StatementPage() {
               const servicePayments = payments.filter((p) => p.serviceRecord?._id === s._id);
               const isExpanded = expandedServices.has(s._id);
 
-              // Guntha can arrive on the record as either `are` or `guntha`
-              // depending on where it was entered — fall back so it always
-              // renders instead of silently disappearing.
               const gunthaValue =
                 s.are != null && s.are !== ""
                   ? s.are
@@ -308,7 +290,6 @@ export default function StatementPage() {
                     <p className="text-xs font-semibold text-[#1F2A22]/50">{formatDate(s.serviceDate)}</p>
                   </div>
 
-                  {/* Area: Acres + Gunthe */}
                   <div className="flex flex-wrap gap-1.5 mb-2.5">
                     {(s.acres != null && s.acres !== "") && (
                       <span className="text-[11px] font-semibold text-[#1F2A22]/60 bg-[#F6F2E9] px-2 py-0.5 rounded-md">
@@ -337,7 +318,6 @@ export default function StatementPage() {
                     </div>
                   </div>
 
-                  {/* Per-service payment history toggle */}
                   <button
                     type="button"
                     onClick={() => toggleServiceHistory(s._id)}
@@ -390,7 +370,6 @@ export default function StatementPage() {
           </div>
         </div>
 
-        {/* Pay Now — UPI QR code */}
         <div className="mt-6">
           <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 flex flex-col items-center text-center">
             <p className="text-[12px] font-black uppercase tracking-widest text-[#1F2A22] mb-3">
@@ -435,7 +414,6 @@ export default function StatementPage() {
               </p>
             </div>
 
-            {/* Post-payment tip */}
             <div className="w-full mt-4 bg-gradient-to-br from-[#FEF3C7]/70 to-[#FEF3C7]/30 border border-[#D97706]/15 rounded-2xl px-4 py-3.5 flex items-start gap-3 text-left">
               <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm border border-[#D97706]/15 shrink-0">
                 <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#D97706]" fill="none" stroke="currentColor" strokeWidth="2">
@@ -450,10 +428,9 @@ export default function StatementPage() {
           </div>
         </div>
 
-        {/* Footer credit — modern clickable card */}
         <div className="mt-6 flex justify-center">
-          <a
-            href="https://prafulljadhav.vercel.app"
+          
+           <a href="https://prafulljadhav.vercel.app"
             target="_blank"
             rel="noopener noreferrer"
             className="group w-full bg-white rounded-2xl border border-black/[0.05] shadow-sm px-4 py-3.5 flex items-center gap-3 active:scale-[0.98] transition-all hover:border-[#4C9A5A]/30 hover:shadow-md"
@@ -501,7 +478,6 @@ export default function StatementPage() {
         </div>
       </div>
 
-      {/* Full-screen QR zoom overlay */}
       {isQrZoomed && (
         <div
           onClick={() => setIsQrZoomed(false)}
