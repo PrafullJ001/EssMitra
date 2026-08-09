@@ -20,11 +20,14 @@ export default function StatementPage() {
   const [qrZoomImageError, setQrZoomImageError] = useState(false);
   const UPI_QR_IMAGE = "/upi-qr.png";
 
-  // Pending Services filter — "recent" (last 10), "all", or "custom" date range
-  const [pendingFilter, setPendingFilter] = useState("recent");
+  // Pending Services filter — "all" (default) or "custom" date range
+  const [pendingFilter, setPendingFilter] = useState("all");
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  // Brief visual confirmation shown on the Apply Range button after it's clicked
+  const [customApplyFlash, setCustomApplyFlash] = useState(false);
 
   const toggleServiceHistory = (serviceId) => {
     setExpandedServices((prev) => {
@@ -158,11 +161,9 @@ export default function StatementPage() {
     .filter((s) => Number(s.pendingAmount || 0) > 0)
     .sort((a, b) => new Date(b.serviceDate) - new Date(a.serviceDate));
 
-  // Apply the active filter (recent 10 / all / custom date range) on top of allPendingServices
+  // Apply the active filter (all / custom date range) on top of allPendingServices
   let pendingServices = allPendingServices;
-  if (pendingFilter === "recent") {
-    pendingServices = allPendingServices.slice(0, 10);
-  } else if (pendingFilter === "custom" && (customFrom || customTo)) {
+  if (pendingFilter === "custom" && (customFrom || customTo)) {
     pendingServices = allPendingServices.filter((s) => {
       const d = new Date(s.serviceDate);
       if (customFrom && d < new Date(customFrom)) return false;
@@ -170,11 +171,6 @@ export default function StatementPage() {
       return true;
     });
   }
-
-  const handlePendingRecent = () => {
-    setPendingFilter("recent");
-    setShowCustomRange(false);
-  };
 
   const handlePendingAll = () => {
     setPendingFilter("all");
@@ -191,6 +187,8 @@ export default function StatementPage() {
 
   const handleApplyPendingCustom = () => {
     setPendingFilter("custom");
+    setCustomApplyFlash(true);
+    setTimeout(() => setCustomApplyFlash(false), 1200);
   };
 
   return (
@@ -302,21 +300,9 @@ export default function StatementPage() {
             )}
           </div>
 
-          {/* Pending filter — Recent 10 / All / Custom */}
+          {/* Pending filter — All / Custom */}
           {allPendingServices.length > 0 && (
             <div className="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
-              <button
-                type="button"
-                onClick={handlePendingRecent}
-                className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap px-2 py-2 rounded-xl text-[11px] leading-tight transition-all ${
-                  pendingFilter === "recent"
-                    ? "bg-[#2B5439] text-white shadow-sm"
-                    : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
-                }`}
-              >
-                Recent 10
-              </button>
-
               <button
                 type="button"
                 onClick={handlePendingAll}
@@ -372,9 +358,22 @@ export default function StatementPage() {
               <button
                 type="button"
                 onClick={handleApplyPendingCustom}
-                className="w-full bg-[#4C9A5A] text-white rounded-xl py-2.5 text-sm font-bold"
+                className={`w-full rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                  customApplyFlash
+                    ? "bg-[#2B5439] text-white"
+                    : "bg-[#4C9A5A] text-white hover:bg-[#3B7A46]"
+                }`}
               >
-                Apply Range
+                {customApplyFlash ? (
+                  <>
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Applied
+                  </>
+                ) : (
+                  "Apply Range"
+                )}
               </button>
             </div>
           )}
