@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { getPublicStatement } from "../api/farmerApi";
-import Spinner from "../components/common/Spinner";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatDate } from "../utils/formatDate";
 import { BUSINESS_NAME, BUSINESS_CONTACT, BUSINESS_PHONEPE } from "../constants/business";
@@ -62,7 +61,76 @@ export default function StatementPage() {
   }, [farmerId]);
 
   if (loading) {
-    return <Spinner label="Loading statement..." />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F6F2E9] px-6">
+        <div className="max-w-sm w-full flex flex-col items-center text-center">
+          {/* Animated icon */}
+          <div className="relative mb-6">
+            <div
+              className="absolute inset-0 rounded-full blur-2xl opacity-60 animate-pulse"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
+              }}
+            />
+            <div
+              className="relative h-20 w-20 rounded-full flex items-center justify-center shadow-lg"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-9 w-9 text-white animate-spin"
+                style={{ animationDuration: "1.4s" }}
+                fill="none"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="9"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  opacity="0.25"
+                />
+                <path
+                  d="M21 12a9 9 0 0 0-9-9"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          </div>
+
+          {/* Bouncing dots */}
+          <div className="flex items-center gap-1.5 mb-5">
+            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+
+          <h2 className="text-[#1F3D2B] text-lg font-bold leading-tight mb-1.5">
+            Loading your statement...
+          </h2>
+          <p className="text-[#1F2A22]/60 text-sm font-medium leading-snug mb-0.5">
+            तुमचे स्टेटमेंट लोड होत आहे...
+          </p>
+
+          <div className="mt-5 bg-white/70 border border-black/[0.05] rounded-2xl px-4 py-3">
+            <p className="text-[#1F2A22]/55 text-xs font-medium leading-relaxed">
+              This can take 20–30 seconds on the first load. Thanks for
+              your patience!
+              <br />
+              <span className="text-[#1F2A22]/45">
+                पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !farmer) {
@@ -382,36 +450,53 @@ export default function StatementPage() {
           </div>
         </div>
 
-        {/* Footer credit — same as Login.jsx */}
-        <div className="flex flex-col items-center mt-6 gap-2">
-          <div className="w-12 h-px bg-[#1F3D2B]/10" />
-
-          <p className="text-[10px] uppercase tracking-[0.2em] text-[#828684] font-semibold">
-            Crafted &amp; Developed by
-          </p>
-
+        {/* Footer credit — modern clickable card */}
+        <div className="mt-6 flex justify-center">
           <a
             href="https://prafulljadhav.vercel.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#1F3D2B] hover:text-[#4C9A5A] transition-colors"
+            className="group w-full bg-white rounded-2xl border border-black/[0.05] shadow-sm px-4 py-3.5 flex items-center gap-3 active:scale-[0.98] transition-all hover:border-[#4C9A5A]/30 hover:shadow-md"
           >
-            <span className="border-b border-transparent group-hover:border-[#4C9A5A] transition-colors">
-              Prafull Jadhav
-            </span>
-            <svg
-              viewBox="0 0 24 24"
-              className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity"
-              fill="none"
+            <div
+              className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
+              }}
             >
-              <path
-                d="M7 17L17 7M17 7H9M17 7v8"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none">
+                <path
+                  d="M12 2c3.4 3.4 3.4 8.2 0 11.6C8.6 10.2 8.6 5.4 12 2Z"
+                  fill="#E8A33D"
+                />
+              </svg>
+            </div>
+
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-[#1F2A22]/40 font-bold mb-0.5">
+                Crafted &amp; Developed by
+              </p>
+              <p className="text-[15px] font-bold text-[#1F3D2B] group-hover:text-[#4C9A5A] transition-colors leading-tight">
+                Prafull Jadhav
+              </p>
+            </div>
+
+            <div className="h-8 w-8 rounded-lg bg-[#F6F2E9] group-hover:bg-[#E9F3E9] flex items-center justify-center shrink-0 transition-colors">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 text-[#1F2A22]/40 group-hover:text-[#4C9A5A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"
+                fill="none"
+              >
+                <path
+                  d="M7 17L17 7M17 7H9M17 7v8"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
           </a>
         </div>
       </div>
