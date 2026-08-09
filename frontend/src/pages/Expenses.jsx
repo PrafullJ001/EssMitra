@@ -7,6 +7,10 @@ import {
   getExpenseStaffList,
   updateExpense,
   deleteExpense,
+  addSettlement,
+  getSettlements,
+  updateSettlement,
+  deleteSettlement,
 } from "../api/expenseApi";
 import Spinner from "../components/common/Spinner";
 import EmptyState from "../components/common/EmptyState";
@@ -88,6 +92,34 @@ export default function Expenses() {
   const [staffSearch, setStaffSearch] = useState("");
   const [viewingStaff, setViewingStaff] = useState(null);
 
+  // Settlement inline form (Staff detail panel only)
+  const [settlementsForStaff, setSettlementsForStaff] = useState([]);
+  const [settlementsLoading, setSettlementsLoading] = useState(false);
+  const [settleFormOpen, setSettleFormOpen] = useState(false);
+  const [editingSettlementId, setEditingSettlementId] = useState(null);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleNote, setSettleNote] = useState("");
+  const [settleDate, setSettleDate] = useState(getTodayLocal());
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
+  const [settleError, setSettleError] = useState(null);
+
+  const [settlementDeleteTarget, setSettlementDeleteTarget] = useState(null);
+  const [showSettlementDeleteCaptcha, setShowSettlementDeleteCaptcha] = useState(false);
+  const [deletingSettlement, setDeletingSettlement] = useState(false);
+  const [settlementDeleteError, setSettlementDeleteError] = useState(null);
+
+  // Settlement edit: the inline form now opens immediately when the pencil
+  // icon is tapped (no captcha yet). The captcha confirmation happens only
+  // once the form is submitted — same "fill in, submit, then confirm"
+  // pattern used for expense edit below. settlementEditTarget holds the
+  // *new* values the user submitted (id/amount/note/date) so the update
+  // call has something to save on confirm. settlementEditReturnStaff
+  // remembers the open staff panel so it can be closed while the captcha
+  // is shown and restored (with the form re-opened) afterwards.
+  const [settlementEditTarget, setSettlementEditTarget] = useState(null);
+  const [showSettlementEditCaptcha, setShowSettlementEditCaptcha] = useState(false);
+  const [settlementEditReturnStaff, setSettlementEditReturnStaff] = useState(null);
+
   // Category detail panel (ESS Machine / Tractor / Pickup / Diesel) — same
   // pattern as the staff detail panel: optional PDF date filter + download.
   const [viewingCategory, setViewingCategory] = useState(null);
@@ -116,12 +148,36 @@ export default function Expenses() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState(null);
 
+  // Remembers which staff/category panel (if any) was open behind an
+  // expense edit, so that panel can be closed while the edit form / edit
+  // captcha are showing (instead of sitting visible in the background)
+  // and restored afterwards — same pattern used for delete below.
+  const [editReturnStaff, setEditReturnStaff] = useState(null);
+  const [editReturnCategory, setEditReturnCategory] = useState(null);
+
+  // Edit now goes through a captcha confirmation AFTER the edit form is
+  // filled in and submitted, before the change is actually saved. The
+  // edit form is hidden while the captcha is shown (editCaptchaTarget
+  // holds the expense being edited so it can be restored on cancel, or
+  // used for the update call on confirm) — same field-preserving pattern
+  // used for settlement edit above.
+  const [showEditCaptcha, setShowEditCaptcha] = useState(false);
+  const [editCaptchaTarget, setEditCaptchaTarget] = useState(null);
+  const [editConfirmLoading, setEditConfirmLoading] = useState(false);
+
   // The expense pending delete confirmation (goes through MathCaptchaModal,
   // same pattern used elsewhere in the app).
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showDeleteCaptcha, setShowDeleteCaptcha] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  // Remembers which staff/category panel (if any) was open when a delete
+  // was triggered from inside it, so the user is returned to that same
+  // panel after the delete is confirmed or cancelled — instead of being
+  // dropped back to the main page.
+  const [deleteReturnStaff, setDeleteReturnStaff] = useState(null);
+  const [deleteReturnCategory, setDeleteReturnCategory] = useState(null);
 
   // Admin-only guard
   useEffect(() => {
@@ -249,6 +305,15 @@ export default function Expenses() {
 
   const openEditModal = (exp) => {
     setEditError(null);
+    // Remember whichever staff/category panel is currently open, then
+    // close it — otherwise it stays visible behind the edit form and,
+    // later, behind the edit-confirmation captcha.
+    setEditReturnStaff(viewingStaff);
+    setEditReturnCategory(viewingCategory);
+    setShowStaffPanel(false);
+    setViewingStaff(null);
+    setViewingCategory(null);
+
     setEditingExpense(exp);
     setEditCategory(exp.category);
     setEditAmount(String(exp.amount ?? ""));
@@ -262,9 +327,23 @@ export default function Expenses() {
   const closeEditModal = () => {
     setEditingExpense(null);
     setEditError(null);
+    // Cancelled — return to whichever panel this edit was triggered from.
+    if (editReturnStaff) {
+      setShowStaffPanel(true);
+      setViewingStaff(editReturnStaff);
+    } else if (editReturnCategory) {
+      setViewingCategory(editReturnCategory);
+    }
+    setEditReturnStaff(null);
+    setEditReturnCategory(null);
   };
 
-  const handleEditSubmit = async (e) => {
+  // Validates the edit form, then hides it and asks for a captcha
+  // confirmation before the change is actually saved. The actual save
+  // happens in handleEditCaptchaConfirm below. The background staff/
+  // category panel (if any) was already closed back in openEditModal, so
+  // it stays closed and out of view underneath the captcha too.
+  const handleEditSubmit = (e) => {
     e.preventDefault();
     setEditError(null);
 
@@ -284,9 +363,29 @@ export default function Expenses() {
       return setEditError("Note is required");
     }
 
-    setEditSubmitting(true);
+    setEditCaptchaTarget(editingExpense);
+    setEditingExpense(null);
+    setShowEditCaptcha(true);
+  };
+
+  const handleEditCaptchaCancel = () => {
+    setShowEditCaptcha(false);
+    // Reopen the edit form exactly as it was — the field values
+    // (editAmount/editCategory/editDate/editNote/editSelectedStaff)
+    // were never cleared, so the form comes back pre-filled. The
+    // background panel (if any) stays closed since we're still mid-edit.
+    if (editCaptchaTarget) {
+      setEditingExpense(editCaptchaTarget);
+    }
+    setEditCaptchaTarget(null);
+  };
+
+  const handleEditCaptchaConfirm = async () => {
+    if (!editCaptchaTarget) return;
+    setEditConfirmLoading(true);
+    setEditError(null);
     try {
-      await updateExpense(editingExpense._id, {
+      await updateExpense(editCaptchaTarget._id, {
         category: editCategory,
         amount: Number(editAmount),
         date: editDate,
@@ -294,31 +393,277 @@ export default function Expenses() {
         note: editNote.trim(),
       });
 
-      closeEditModal();
+      setShowEditCaptcha(false);
       reloadCurrentView();
 
-      // Keep the staff detail panel in sync if we edited an entry from there.
-      if (viewingStaff) {
-        setViewingStaff((prev) => (prev ? { ...prev } : prev));
+      // Return to whichever staff/category panel this edit was triggered
+      // from (same behavior as delete) instead of dropping back to the
+      // main page. The staffTotals-sync effect below picks up the fresh
+      // numbers once reloadCurrentView's fetch resolves.
+      if (editReturnStaff) {
+        setShowStaffPanel(true);
+        setViewingStaff(editReturnStaff);
+      } else if (editReturnCategory) {
+        setViewingCategory(editReturnCategory);
       }
+      setEditReturnStaff(null);
+      setEditReturnCategory(null);
     } catch (err) {
+      // Reopen the edit form so the error is visible where the user can act on it.
+      setEditingExpense(editCaptchaTarget);
+      setShowEditCaptcha(false);
       setEditError(err.response?.data?.message || "Failed to update expense");
     } finally {
-      setEditSubmitting(false);
+      setEditConfirmLoading(false);
+      setEditCaptchaTarget(null);
     }
   };
 
   // Delete goes through the same MathCaptchaModal confirmation pattern
   // used elsewhere in the app before anything destructive happens.
-  const requestDelete = (exp) => {
-    setDeleteError(null);
-    setDeleteTarget(exp);
-    setShowDeleteCaptcha(true);
+  // Keep viewingStaff's given/settled/balance numbers in sync whenever the
+  // page reloads staffTotals (after an expense add/edit/delete, or a
+  // settlement add/edit/delete).
+  useEffect(() => {
+    if (!viewingStaff) return;
+    const updated = staffTotals.find((s) => s.staffId === viewingStaff.staffId);
+    if (updated) {
+      setViewingStaff((prev) => (prev ? { ...prev, ...updated } : prev));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffTotals]);
+
+  const loadSettlementsForStaff = async (staffId) => {
+    setSettlementsLoading(true);
+    try {
+      const { data } = await getSettlements(staffId);
+      setSettlementsForStaff(data.settlements || []);
+    } catch (err) {
+      setSettlementsForStaff([]);
+    } finally {
+      setSettlementsLoading(false);
+    }
   };
+
+  // Load/clear settlement history whenever the staff detail panel opens/closes.
+  useEffect(() => {
+    if (viewingStaff) {
+      loadSettlementsForStaff(viewingStaff.staffId);
+    } else {
+      setSettlementsForStaff([]);
+      closeSettleForm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingStaff?.staffId]);
+
+  const openSettleForm = () => {
+    setSettleError(null);
+    setEditingSettlementId(null);
+    setSettleAmount("");
+    setSettleNote("");
+    setSettleDate(getTodayLocal());
+    setSettleFormOpen(true);
+  };
+
+  // Opens the inline settlement form pre-filled for editing. Called
+  // directly from the pencil icon — no captcha at this point. The captcha
+  // confirmation happens only when this form is submitted, in
+  // handleSettleSubmit below.
+  const openEditSettlementForm = (s) => {
+    setSettleError(null);
+    setEditingSettlementId(s._id);
+    setSettleAmount(String(s.amount ?? ""));
+    setSettleNote(s.note || "");
+    // s.date comes back from the API as an ISO string — trim to
+    // YYYY-MM-DD for the <input type="date">.
+    setSettleDate(s.date ? String(s.date).slice(0, 10) : getTodayLocal());
+    setSettleFormOpen(true);
+  };
+
+  const closeSettleForm = () => {
+    setSettleFormOpen(false);
+    setEditingSettlementId(null);
+    setSettleAmount("");
+    setSettleNote("");
+    setSettleDate(getTodayLocal());
+    setSettleError(null);
+  };
+
+  // Add settlements save immediately (no captcha, unchanged). Editing a
+  // settlement now holds the submitted values and asks for a captcha
+  // confirmation before actually saving — same "fill in, submit, then
+  // confirm" pattern used for expense edit above. The staff panel is
+  // closed while the captcha is up so it isn't visible in the background,
+  // then restored (with the form re-opened) on cancel, or restored plain
+  // on confirm once the save completes.
+  const handleSettleSubmit = async (e) => {
+    e.preventDefault();
+    setSettleError(null);
+
+    if (!settleAmount || Number(settleAmount) <= 0) {
+      return setSettleError("Enter a valid amount");
+    }
+
+    if (!settleNote.trim()) {
+      return setSettleError("Note is required");
+    }
+
+    if (!settleDate) {
+      return setSettleError("Date is required");
+    }
+
+    if (editingSettlementId) {
+      setSettlementEditTarget({
+        id: editingSettlementId,
+        amount: Number(settleAmount),
+        note: settleNote.trim(),
+        date: settleDate,
+      });
+      setSettlementEditReturnStaff(viewingStaff);
+      setSettleFormOpen(false);
+      setShowStaffPanel(false);
+      setViewingStaff(null);
+      setViewingCategory(null);
+      setShowSettlementEditCaptcha(true);
+      return;
+    }
+
+    setSettleSubmitting(true);
+    try {
+      await addSettlement({
+        staffMember: viewingStaff.staffId,
+        amount: Number(settleAmount),
+        note: settleNote.trim(),
+        date: settleDate,
+      });
+
+      closeSettleForm();
+      await loadSettlementsForStaff(viewingStaff.staffId);
+      reloadCurrentView();
+    } catch (err) {
+      setSettleError(err.response?.data?.message || "Failed to save settlement");
+    } finally {
+      setSettleSubmitting(false);
+    }
+  };
+
+  const closeSettlementEditCaptcha = () => {
+    setShowSettlementEditCaptcha(false);
+    setSettlementEditTarget(null);
+    // Cancelled — restore the staff panel with the edit form still open
+    // and pre-filled, exactly as it was before confirming (the settle*
+    // field values were never cleared).
+    if (settlementEditReturnStaff) {
+      setShowStaffPanel(true);
+      setViewingStaff(settlementEditReturnStaff);
+      setSettleFormOpen(true);
+    }
+    setSettlementEditReturnStaff(null);
+  };
+
+  const handleSettlementEditConfirmed = async () => {
+    if (!settlementEditTarget) return;
+    setSettleSubmitting(true);
+    setSettleError(null);
+    try {
+      await updateSettlement(settlementEditTarget.id, {
+        amount: settlementEditTarget.amount,
+        note: settlementEditTarget.note,
+        date: settlementEditTarget.date,
+      });
+
+      setShowSettlementEditCaptcha(false);
+      const returnStaff = settlementEditReturnStaff;
+      setSettlementEditTarget(null);
+      setSettlementEditReturnStaff(null);
+      closeSettleForm();
+
+      if (returnStaff) {
+        setShowStaffPanel(true);
+        setViewingStaff(returnStaff);
+        await loadSettlementsForStaff(returnStaff.staffId);
+      }
+      reloadCurrentView();
+    } catch (err) {
+      setShowSettlementEditCaptcha(false);
+      // Reopen the panel with the edit form so the error is visible where
+      // the user can act on it.
+      if (settlementEditReturnStaff) {
+        setShowStaffPanel(true);
+        setViewingStaff(settlementEditReturnStaff);
+        setSettleFormOpen(true);
+      }
+      setSettlementEditTarget(null);
+      setSettlementEditReturnStaff(null);
+      setSettleError(err.response?.data?.message || "Failed to update settlement");
+    } finally {
+      setSettleSubmitting(false);
+    }
+  };
+
+  const requestSettlementDelete = (s) => {
+    setSettlementDeleteError(null);
+    setSettlementDeleteTarget(s);
+    // Close the staff panel first — otherwise it stays visible behind the
+    // captcha modal, same fix already applied to expense delete below.
+    setShowStaffPanel(false);
+    setViewingStaff(null);
+    setViewingCategory(null);
+    setShowSettlementDeleteCaptcha(true);
+  };
+
+  const closeSettlementDeleteCaptcha = () => {
+    setShowSettlementDeleteCaptcha(false);
+    setSettlementDeleteTarget(null);
+  };
+
+  const handleSettlementDeleteConfirmed = async () => {
+    if (!settlementDeleteTarget) return;
+    setDeletingSettlement(true);
+    setSettlementDeleteError(null);
+    try {
+      await deleteSettlement(settlementDeleteTarget._id);
+      setShowSettlementDeleteCaptcha(false);
+      setSettlementDeleteTarget(null);
+      if (viewingStaff) await loadSettlementsForStaff(viewingStaff.staffId);
+      reloadCurrentView();
+    } catch (err) {
+      setSettlementDeleteError(err.response?.data?.message || "Failed to delete settlement");
+      window.alert(err.response?.data?.message || "Failed to delete settlement");
+    } finally {
+      setDeletingSettlement(false);
+    }
+  };
+
+const requestDelete = (exp) => {
+  setDeleteError(null);
+  setDeleteTarget(exp);
+  // Remember which panel (if any) triggered this delete, so the user is
+  // returned to that same staff/category view after the delete is
+  // confirmed or cancelled, instead of landing back on the main page.
+  setDeleteReturnStaff(viewingStaff);
+  setDeleteReturnCategory(viewingCategory);
+  // Close whichever background panel triggered this delete, so only the
+  // delete confirmation is visible — otherwise both overlays stack and
+  // the Staff/Category panel shows behind the captcha modal.
+  setShowStaffPanel(false);
+  setViewingStaff(null);
+  setViewingCategory(null);
+  setShowDeleteCaptcha(true);
+};
 
   const closeDeleteCaptcha = () => {
     setShowDeleteCaptcha(false);
     setDeleteTarget(null);
+    // Cancelled — return to whichever panel this was triggered from.
+    if (deleteReturnStaff) {
+      setShowStaffPanel(true);
+      setViewingStaff(deleteReturnStaff);
+    } else if (deleteReturnCategory) {
+      setViewingCategory(deleteReturnCategory);
+    }
+    setDeleteReturnStaff(null);
+    setDeleteReturnCategory(null);
   };
 
   const handleDeleteConfirmed = async () => {
@@ -330,6 +675,16 @@ export default function Expenses() {
       setShowDeleteCaptcha(false);
       setDeleteTarget(null);
       reloadCurrentView();
+      // Return to whichever staff/category panel this delete was
+      // triggered from, instead of dropping back to the main page.
+      if (deleteReturnStaff) {
+        setShowStaffPanel(true);
+        setViewingStaff(deleteReturnStaff);
+      } else if (deleteReturnCategory) {
+        setViewingCategory(deleteReturnCategory);
+      }
+      setDeleteReturnStaff(null);
+      setDeleteReturnCategory(null);
     } catch (err) {
       // MathCaptchaModal has no error prop, so surface API failures this way.
       setDeleteError(err.response?.data?.message || "Failed to delete expense");
@@ -379,6 +734,19 @@ export default function Expenses() {
       return true;
     });
   }, [viewingStaffExpenses, pdfFrom, pdfTo]);
+
+  // Same optional PDF date filter, applied to this staff's settlements —
+  // used so the staff PDF report can include settlements and its total
+  // matches the Balance shown on screen (Given − Settled).
+  const pdfFilteredSettlements = useMemo(() => {
+    if (!pdfFrom && !pdfTo) return settlementsForStaff;
+    return settlementsForStaff.filter((s) => {
+      const d = new Date(s.date);
+      if (pdfFrom && d < new Date(pdfFrom)) return false;
+      if (pdfTo && d > new Date(pdfTo + "T23:59:59")) return false;
+      return true;
+    });
+  }, [settlementsForStaff, pdfFrom, pdfTo]);
 
   // Same optional date filter, applied to the category panel instead.
   // Reuses pdfFrom/pdfTo since only one of the two panels is ever open
@@ -451,7 +819,10 @@ export default function Expenses() {
       footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
     });
 
-    // Filename: staff name + from date + to date (only the parts that are set)
+    // Filename: staff name + optional date-range suffix. When no date
+    // filter is applied, the "_all" fallback is intentionally NOT used
+    // here — that generic suffix is reserved for the combined "All
+    // Expenses" report below, so this stays a clean "{name}.pdf".
     const safeName = staffName.replace(/\s+/g, "_");
     const fileSuffix =
       pdfFrom && pdfTo
@@ -460,7 +831,126 @@ export default function Expenses() {
         ? `from_${pdfFrom}`
         : pdfTo
         ? `upto_${pdfTo}`
-        : "all";
+        : "";
+
+    doc.save(fileSuffix ? `${safeName}_${fileSuffix}.pdf` : `${safeName}.pdf`);
+  };
+
+  // Staff PDF report — same layout as handleGeneratePdf, but prints
+  // expenses first, then settlements as a separate table below it (both
+  // intended to fit on page 1), followed by a totals summary (Given /
+  // Settled / Balance) so the printed Balance matches what's shown on
+  // screen. Kept separate from handleGeneratePdf so the category-panel
+  // PDF is completely untouched.
+  const handleGenerateStaffPdf = (staffName, staffExpenseEntries, staffSettlementEntries) => {
+    const doc = new jsPDF();
+    const generatedOn = new Date().toLocaleDateString("en-IN");
+
+    const rangeLabel =
+      pdfFrom && pdfTo
+        ? `Period: ${new Date(pdfFrom).toLocaleDateString("en-IN")} to ${new Date(pdfTo).toLocaleDateString("en-IN")}`
+        : pdfFrom
+        ? `Period: From ${new Date(pdfFrom).toLocaleDateString("en-IN")}`
+        : pdfTo
+        ? `Period: Up to ${new Date(pdfTo).toLocaleDateString("en-IN")}`
+        : "Period: All Time (within current page filter)";
+
+    doc.setFontSize(16);
+    doc.text(`${staffName} — Expense Report`, 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${generatedOn}`, 14, 26);
+    doc.text(rangeLabel, 14, 31);
+
+    const sortedEntries = [...staffExpenseEntries].sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
+    );
+    const sortedSettlements = [...staffSettlementEntries].sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
+    );
+
+    const totalGiven = sortedEntries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalSettled = sortedSettlements.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+    const balance = totalGiven - totalSettled;
+
+    // Table 1 — Expenses
+    doc.setFontSize(11);
+    doc.setTextColor(31, 42, 34);
+    doc.text("Expenses", 14, 38);
+
+    autoTable(doc, {
+      startY: 42,
+      head: [["Date", "Note", "Amount"]],
+      body: sortedEntries.map((e) => [
+        new Date(e.date).toLocaleDateString("en-IN"),
+        e.note || "-",
+        formatCurrencyForPdf(e.amount),
+      ]),
+      foot: [[
+        "",
+        "Total Given",
+        formatCurrencyForPdf(totalGiven),
+      ]],
+      headStyles: { fillColor: [31, 61, 43] },
+      footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
+    });
+
+    // Table 2 — Settlements, printed right below the expenses table (same
+    // page whenever it fits, jsPDF-autotable overflows to a new page on
+    // its own only if there isn't room left).
+    const settlementsStartY = doc.lastAutoTable.finalY + 12;
+    doc.setFontSize(11);
+    doc.setTextColor(31, 42, 34);
+    doc.text("Settlements", 14, settlementsStartY);
+
+    autoTable(doc, {
+      startY: settlementsStartY + 4,
+      head: [["Date", "Note", "Amount"]],
+      body: sortedSettlements.length
+        ? sortedSettlements.map((s) => [
+            new Date(s.date).toLocaleDateString("en-IN"),
+            s.note || "-",
+            formatCurrencyForPdf(s.amount),
+          ])
+        : [["-", "No settlements in this range", "-"]],
+      foot: [[
+        "",
+        "Total Settled",
+        formatCurrencyForPdf(totalSettled),
+      ]],
+      headStyles: { fillColor: [31, 61, 43] },
+      footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
+    });
+
+    // Summary — Given / Settled / Balance together, calculated the same
+    // way as the Balance shown on screen (Given − Settled).
+    const summaryStartY = doc.lastAutoTable.finalY + 10;
+    autoTable(doc, {
+      startY: summaryStartY,
+      body: [
+        ["Total Given", formatCurrencyForPdf(totalGiven)],
+        ["Total Settled", formatCurrencyForPdf(totalSettled)],
+        ["Balance", formatCurrencyForPdf(balance)],
+      ],
+      theme: "plain",
+      styles: { fontStyle: "bold", fontSize: 11 },
+      columnStyles: { 0: { textColor: [90, 100, 92] }, 1: { halign: "right", textColor: [31, 42, 34] } },
+    });
+
+    // Filename: staff name + optional date-range suffix. Unlike
+    // handleGeneratePdf above, this report always includes a suffix — when
+    // no PDF date filter is applied it falls back to "_all_<today's date>"
+    // (e.g. "Ramesh_all_2026-08-09.pdf") instead of a bare "{name}.pdf",
+    // so every download from this button is uniquely dated.
+    const safeName = staffName.replace(/\s+/g, "_");
+    const fileSuffix =
+      pdfFrom && pdfTo
+        ? `${pdfFrom}_to_${pdfTo}`
+        : pdfFrom
+        ? `from_${pdfFrom}`
+        : pdfTo
+        ? `upto_${pdfTo}`
+        : `all_${getTodayLocal()}`;
 
     doc.save(`${safeName}_${fileSuffix}.pdf`);
   };
@@ -527,6 +1017,9 @@ export default function Expenses() {
       footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
     });
 
+    // Filename: this is the ONLY report that keeps the generic "_all"
+    // fallback when no date filter is applied — it's the combined /
+    // "select all" report, so that naming belongs here specifically.
     const fileSuffix =
       allPdfFrom && allPdfTo
         ? `${allPdfFrom}_to_${allPdfTo}`
@@ -1052,7 +1545,7 @@ export default function Expenses() {
                             <p className="text-[11px] text-[#1F2A22]/50">{s.count} entr{s.count === 1 ? "y" : "ies"}</p>
                           </div>
                         </div>
-                        <p className="text-sm font-black text-[#C24949] shrink-0 ml-2">{formatCurrency(s.total)}</p>
+                        <p className="text-sm font-black text-[#C24949] shrink-0 ml-2">{formatCurrency(s.balance ?? s.total)}</p>
                       </button>
                     ))}
                   </div>
@@ -1097,7 +1590,10 @@ export default function Expenses() {
                   <div>
                     <h2 className="font-bold text-lg text-[#1F2A22]">{viewingStaff.name}</h2>
                     <p className="text-[12px] text-[#1F2A22]/50">
-                      {viewingStaff.count} entr{viewingStaff.count === 1 ? "y" : "ies"} • {formatCurrency(viewingStaff.total)} total
+                      {viewingStaff.count} entr{viewingStaff.count === 1 ? "y" : "ies"} • Given: {formatCurrency(viewingStaff.total)} • Settled: {formatCurrency(viewingStaff.settled || 0)}
+                    </p>
+                    <p className="text-sm font-black text-[#2B5439] mt-0.5">
+                      Balance: {formatCurrency(viewingStaff.balance ?? viewingStaff.total)}
                     </p>
                   </div>
                 </div>
@@ -1172,15 +1668,123 @@ export default function Expenses() {
                 </div>
 
                 <button
-                  onClick={() => handleGeneratePdf(viewingStaff.name, pdfFilteredExpenses)}
-                  disabled={pdfFilteredExpenses.length === 0}
+                  onClick={() => handleGenerateStaffPdf(viewingStaff.name, pdfFilteredExpenses, pdfFilteredSettlements)}
+                  disabled={pdfFilteredExpenses.length === 0 && pdfFilteredSettlements.length === 0}
                   className="w-full mb-4 bg-[#2B5439] text-white rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M5 21h14a2 2 0 002-2V7l-5-5H5a2 2 0 00-2 2v15a2 2 0 002 2z" />
                   </svg>
-                  Download PDF ({pdfFilteredExpenses.length} entr{pdfFilteredExpenses.length === 1 ? "y" : "ies"})
+                  Download PDF ({pdfFilteredExpenses.length} expense{pdfFilteredExpenses.length === 1 ? "" : "s"}, {pdfFilteredSettlements.length} settlement{pdfFilteredSettlements.length === 1 ? "" : "s"})
                 </button>
+
+                {!settleFormOpen ? (
+                  <button
+                    type="button"
+                    onClick={openSettleForm}
+                    className="w-full mb-4 bg-[#4C9A5A] text-white rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v8m4-4H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Settle Amount
+                  </button>
+                ) : (
+                  <form onSubmit={handleSettleSubmit} className="bg-[#F6F2E9]/60 rounded-xl p-3.5 mb-4 space-y-2.5">
+                    <p className="text-[12px] font-bold text-[#1F2A22]">
+                      {editingSettlementId ? "Edit Settlement" : "Enter settled amount"}
+                    </p>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={settleAmount}
+                      onChange={(e) => setSettleAmount(e.target.value)}
+                      placeholder="₹0"
+                      autoFocus
+                      className="w-full bg-white border border-black/[0.06] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                    />
+                    <input
+                      type="date"
+                      value={settleDate}
+                      max={getTodayLocal()}
+                      onChange={(e) => setSettleDate(e.target.value)}
+                      className="w-full bg-white border border-black/[0.06] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                    />
+                    <input
+                      type="text"
+                      value={settleNote}
+                      onChange={(e) => setSettleNote(e.target.value)}
+                      placeholder="Note *"
+                      required
+                      className="w-full bg-white border border-black/[0.06] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                    />
+                    {settleError && (
+                      <p className="text-[#C24949] text-[12px] font-semibold">{settleError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={closeSettleForm}
+                        className="flex-1 bg-white text-[#1F2A22] rounded-lg py-2 text-[13px] font-bold border border-black/[0.06]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={settleSubmitting}
+                        className="flex-1 bg-[#2B5439] text-white rounded-lg py-2 text-[13px] font-bold disabled:opacity-50"
+                      >
+                        {settleSubmitting ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="flex items-center justify-between px-0.5 mb-2">
+                  <p className="text-[11px] font-bold text-[#1F2A22]/50 uppercase tracking-wide">Settlement History</p>
+                </div>
+
+                {settlementsLoading ? (
+                  <Spinner label="Loading settlements..." />
+                ) : settlementsForStaff.length === 0 ? (
+                  <p className="text-[12px] text-[#8A968C] font-medium mb-4">No settlements yet</p>
+                ) : (
+                  <div className="space-y-2 mb-4">
+                    {settlementsForStaff.map((s) => (
+                      <div key={s._id} className="flex items-center justify-between bg-[#EAF3EC] rounded-xl px-3.5 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-[#1F2A22] truncate">{s.note || "Settlement"}</p>
+                          <p className="text-[11px] text-[#1F2A22]/50">
+                            {new Date(s.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <p className="text-sm font-black text-[#2B5439]">{formatCurrency(s.amount)}</p>
+                          <button
+                            type="button"
+                            onClick={() => openEditSettlementForm(s)}
+                            aria-label="Edit settlement"
+                            className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#2B5439] hover:bg-white transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => requestSettlementDelete(s)}
+                            aria-label="Delete settlement"
+                            className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#C24949] hover:bg-white transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between px-0.5 mb-2">
                   <p className="text-[11px] font-bold text-[#1F2A22]/50 uppercase tracking-wide">Recent Entries</p>
@@ -1556,6 +2160,23 @@ export default function Expenses() {
         </div>
       )}
 
+      {/* EDIT CONFIRMATION — shown after the edit form is submitted, before
+          the change is actually saved. Cancelling reopens the edit form
+          with everything exactly as it was. The staff/category panel this
+          edit was triggered from was already closed in openEditModal, so
+          it never shows up behind this captcha. */}
+      {showEditCaptcha && editCaptchaTarget && (
+        <MathCaptchaModal
+          title="Confirm Expense Changes"
+          message={`Solve to confirm saving changes to "${editNote || editCaptchaTarget.note || editCaptchaTarget.category}".`}
+          onConfirm={handleEditCaptchaConfirm}
+          onCancel={handleEditCaptchaCancel}
+          loading={editConfirmLoading}
+          confirmLabel="Confirm Changes"
+          loadingLabel="Saving..."
+        />
+      )}
+
       {/* DELETE CONFIRMATION — same MathCaptchaModal pattern used elsewhere
           in the app before a destructive action is carried out. Only
           mounted while active, since the component has no isOpen prop of
@@ -1569,6 +2190,28 @@ export default function Expenses() {
           loading={deleting}
           confirmLabel="Confirm Delete"
           loadingLabel="Deleting..."
+        />
+      )}
+      {showSettlementDeleteCaptcha && settlementDeleteTarget && (
+        <MathCaptchaModal
+          title="Delete Settlement"
+          message={`Solve to confirm deleting this settlement of ${formatCurrency(settlementDeleteTarget.amount)}. This can't be undone.`}
+          onConfirm={handleSettlementDeleteConfirmed}
+          onCancel={closeSettlementDeleteCaptcha}
+          loading={deletingSettlement}
+          confirmLabel="Confirm Delete"
+          loadingLabel="Deleting..."
+        />
+      )}
+      {showSettlementEditCaptcha && settlementEditTarget && (
+        <MathCaptchaModal
+          title="Confirm Settlement Changes"
+          message={`Solve to confirm saving changes to this settlement (${formatCurrency(settlementEditTarget.amount)}).`}
+          onConfirm={handleSettlementEditConfirmed}
+          onCancel={closeSettlementEditCaptcha}
+          loading={settleSubmitting}
+          confirmLabel="Confirm Changes"
+          loadingLabel="Saving..."
         />
       )}
     </div>

@@ -1,5 +1,6 @@
 ﻿const Expense = require('../models/Expense');
 const User = require('../models/User');
+const Staffsettle = require('../models/Staffsettle');
 
 const CATEGORIES = [
   'ESS Machine Maintenance',
@@ -126,9 +127,30 @@ exports.getExpenses = async (req, res) => {
       }
     });
 
-    const staffTotals = Object.values(staffTotalsMap).sort((a, b) => b.total - a.total);
+    // Settlements aren't date-filtered — they represent the current running
+    // balance against the staff member's total advance, regardless of which
+    // date range is being viewed.
+    const settlementDocs = await Staffsettle.find({}).select('staffMember amount');
+    const settledMap = {};
+    settlementDocs.forEach((s) => {
+      const key = s.staffMember.toString();
+      settledMap[key] = (settledMap[key] || 0) + s.amount;
+    });
 
-    res.json({ expenses, totals, grandTotal, categories: CATEGORIES, staffTotals });
+    const staffTotalsWithBalance = Object.values(staffTotalsMap)
+      .map((s) => {
+        const settled = settledMap[s.staffId.toString()] || 0;
+        return { ...s, settled, balance: s.total - settled };
+      })
+      .sort((a, b) => b.total - a.total);
+
+    res.json({
+      expenses,
+      totals,
+      grandTotal,
+      categories: CATEGORIES,
+      staffTotals: staffTotalsWithBalance,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -201,7 +223,8 @@ exports.updateExpense = async (req, res) => {
     const effectiveCategory = category !== undefined ? category : expense.category;
 
     if (effectiveCategory === 'Staff Expense') {
-      const effectiveStaffMember = staffMember !== undefined ? staffMember : expense.staffMember;
+      const effectiveStaffMember =
+        staffMember !== undefined ? staffMember : expense.staffMember;
       if (!effectiveStaffMember) {
         return res
           .status(400)
@@ -240,6 +263,122 @@ exports.deleteExpense = async (req, res) => {
     await expense.deleteOne();
 
     res.json({ message: 'Expense deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Add a settlement (payback) against a staff member's balance
+// @route POST /api/expenses/settlements
+// @access Admin only
+exports.addSettlement = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can add settlements' });
+    }
+
+    const { staffMember, amount, date, note } = req.body;
+
+    if (!staffMember) {
+      return res.status(400).json({ message: 'Staff member is required' });
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ message: 'Amount must be greater than 0' });
+    }
+
+    const settlement = await Staffsettle.create({
+      staffMember,
+      amount: Number(amount),
+      date: date || Date.now(),
+      note: note ? note.trim() : '',
+      createdBy: req.user._id,
+    });
+
+    const populated = await settlement.populate('staffMember', 'name mobile role');
+
+    res.status(201).json({ settlement: populated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  List settlements, optionally filtered by staff member
+// @route GET /api/expenses/settlements?staffId=...
+// @access Admin only
+exports.getSettlements = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can view settlements' });
+    }
+
+    const { staffId } = req.query;
+    const filter = {};
+    if (staffId) filter.staffMember = staffId;
+
+    const settlements = await Staffsettle.find(filter)
+      .populate('staffMember', 'name mobile role')
+      .sort({ date: -1 });
+
+    res.json({ settlements });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Update a settlement entry
+// @route PUT /api/expenses/settlements/:id
+// @access Admin only
+exports.updateSettlement = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can edit settlements' });
+    }
+
+    const settlement = await Staffsettle.findById(req.params.id);
+    if (!settlement) {
+      return res.status(404).json({ message: 'Settlement not found' });
+    }
+
+    const { amount, date, note } = req.body;
+
+    if (amount !== undefined) {
+      if (!amount || Number(amount) <= 0) {
+        return res.status(400).json({ message: 'Amount must be greater than 0' });
+      }
+      settlement.amount = Number(amount);
+    }
+
+    if (date !== undefined) settlement.date = date;
+    if (note !== undefined) settlement.note = note.trim();
+
+    await settlement.save();
+
+    const populated = await settlement.populate('staffMember', 'name mobile role');
+
+    res.json({ settlement: populated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Delete a settlement entry
+// @route DELETE /api/expenses/settlements/:id
+// @access Admin only
+exports.deleteSettlement = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can delete settlements' });
+    }
+
+    const settlement = await Staffsettle.findById(req.params.id);
+    if (!settlement) {
+      return res.status(404).json({ message: 'Settlement not found' });
+    }
+
+    await settlement.deleteOne();
+
+    res.json({ message: 'Settlement deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
