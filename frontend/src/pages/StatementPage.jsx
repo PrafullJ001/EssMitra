@@ -381,6 +381,39 @@ export default function StatementPage() {
             </div>
           </div>
         </div>
+
+        {/* Footer credit — same as Login.jsx */}
+        <div className="flex flex-col items-center mt-6 gap-2">
+          <div className="w-12 h-px bg-[#1F3D2B]/10" />
+
+          <p className="text-[10px] uppercase tracking-[0.2em] text-[#828684] font-semibold">
+            Crafted &amp; Developed by
+          </p>
+
+          <a
+            href="https://prafulljadhav.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#1F3D2B] hover:text-[#4C9A5A] transition-colors"
+          >
+            <span className="border-b border-transparent group-hover:border-[#4C9A5A] transition-colors">
+              Prafull Jadhav
+            </span>
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity"
+              fill="none"
+            >
+              <path
+                d="M7 17L17 7M17 7H9M17 7v8"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </a>
+        </div>
       </div>
 
       {/* Full-screen QR zoom overlay */}
