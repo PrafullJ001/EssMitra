@@ -20,6 +20,12 @@ export default function StatementPage() {
   const [qrZoomImageError, setQrZoomImageError] = useState(false);
   const UPI_QR_IMAGE = "/upi-qr.png";
 
+  // Pending Services filter — "recent" (last 10), "all", or "custom" date range
+  const [pendingFilter, setPendingFilter] = useState("recent");
+  const [showCustomRange, setShowCustomRange] = useState(false);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
   const toggleServiceHistory = (serviceId) => {
     setExpandedServices((prev) => {
       const next = new Set(prev);
@@ -147,7 +153,45 @@ export default function StatementPage() {
   const totalCollected = services.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0);
   const totalPending = services.reduce((sum, s) => sum + Number(s.pendingAmount || 0), 0);
 
-  const pendingServices = services.filter((s) => Number(s.pendingAmount || 0) > 0);
+  // All pending services, sorted most recent first
+  const allPendingServices = services
+    .filter((s) => Number(s.pendingAmount || 0) > 0)
+    .sort((a, b) => new Date(b.serviceDate) - new Date(a.serviceDate));
+
+  // Apply the active filter (recent 10 / all / custom date range) on top of allPendingServices
+  let pendingServices = allPendingServices;
+  if (pendingFilter === "recent") {
+    pendingServices = allPendingServices.slice(0, 10);
+  } else if (pendingFilter === "custom" && (customFrom || customTo)) {
+    pendingServices = allPendingServices.filter((s) => {
+      const d = new Date(s.serviceDate);
+      if (customFrom && d < new Date(customFrom)) return false;
+      if (customTo && d > new Date(customTo)) return false;
+      return true;
+    });
+  }
+
+  const handlePendingRecent = () => {
+    setPendingFilter("recent");
+    setShowCustomRange(false);
+  };
+
+  const handlePendingAll = () => {
+    setPendingFilter("all");
+    setShowCustomRange(false);
+  };
+
+  const handleTogglePendingCustom = () => {
+    setShowCustomRange((prev) => {
+      const next = !prev;
+      if (next) setPendingFilter("custom");
+      return next;
+    });
+  };
+
+  const handleApplyPendingCustom = () => {
+    setPendingFilter("custom");
+  };
 
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-16 font-sans selection:bg-[#4C9A5A]/20">
@@ -251,12 +295,89 @@ export default function StatementPage() {
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Pending Services Payments</h2>
-            {pendingServices.length > 0 && (
+            {allPendingServices.length > 0 && (
               <span className="text-[11px] font-bold uppercase tracking-wide text-[#D97706] bg-[#FEF3C7] rounded-lg px-2.5 py-1 shadow-sm border border-[#D97706]/10">
-                {pendingServices.length} Pending
+                {pendingServices.length} of {allPendingServices.length}
               </span>
             )}
           </div>
+
+          {/* Pending filter — Recent 10 / All / Custom */}
+          {allPendingServices.length > 0 && (
+            <div className="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+              <button
+                type="button"
+                onClick={handlePendingRecent}
+                className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap px-2 py-2 rounded-xl text-[11px] leading-tight transition-all ${
+                  pendingFilter === "recent"
+                    ? "bg-[#2B5439] text-white shadow-sm"
+                    : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
+                }`}
+              >
+                Recent 10
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePendingAll}
+                className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap px-2 py-2 rounded-xl text-[11px] leading-tight transition-all ${
+                  pendingFilter === "all"
+                    ? "bg-[#2B5439] text-white shadow-sm"
+                    : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
+                }`}
+              >
+                All
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTogglePendingCustom}
+                className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap px-2 py-2 rounded-xl text-[11px] leading-tight transition-all ${
+                  pendingFilter === "custom"
+                    ? "bg-[#2B5439] text-white shadow-sm"
+                    : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
+                }`}
+              >
+                Custom
+              </button>
+            </div>
+          )}
+
+          {showCustomRange && (
+            <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] p-4 mb-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1.5">From</label>
+                  <input
+                    type="date"
+                    name="pendingFrom"
+                    autoComplete="off"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1.5">To</label>
+                  <input
+                    type="date"
+                    name="pendingTo"
+                    autoComplete="off"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleApplyPendingCustom}
+                className="w-full bg-[#4C9A5A] text-white rounded-xl py-2.5 text-sm font-bold"
+              >
+                Apply Range
+              </button>
+            </div>
+          )}
 
           <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] overflow-hidden divide-y divide-black/[0.04]">
             {pendingServices.length === 0 && (
@@ -268,7 +389,9 @@ export default function StatementPage() {
                 </div>
                 <p className="text-[#1F3D2B] text-[15px] font-bold leading-tight mb-1">No Payment Pending</p>
                 <p className="text-[#1F2A22]/45 text-[12px] font-medium leading-snug max-w-[220px]">
-                  You're all caught up — every service has been fully paid.
+                  {allPendingServices.length === 0
+                    ? "You're all caught up — every service has been fully paid."
+                    : "No pending services found for this range."}
                 </p>
               </div>
             )}
@@ -428,52 +551,33 @@ export default function StatementPage() {
           </div>
         </div>
 
+        {/* Footer credit — signature style */}
         <div className="mt-6 flex justify-center">
           
            <a href="https://prafulljadhav.vercel.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="group w-full bg-white rounded-2xl border border-black/[0.05] shadow-sm px-4 py-3.5 flex items-center gap-3 active:scale-[0.98] transition-all hover:border-[#4C9A5A]/30 hover:shadow-md"
+            className="group text-center py-2"
           >
-            <div
-              className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
-              }}
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none">
-                <path
-                  d="M12 2c3.4 3.4 3.4 8.2 0 11.6C8.6 10.2 8.6 5.4 12 2Z"
-                  fill="#E8A33D"
-                />
-              </svg>
-            </div>
-
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-[9px] uppercase tracking-[0.18em] text-[#1F2A22]/40 font-bold mb-0.5">
-                Crafted &amp; Developed by
-              </p>
-              <p className="text-[15px] font-bold text-[#1F3D2B] group-hover:text-[#4C9A5A] transition-colors leading-tight">
-                Prafull Jadhav
-              </p>
-            </div>
-
-            <div className="h-8 w-8 rounded-lg bg-[#F6F2E9] group-hover:bg-[#E9F3E9] flex items-center justify-center shrink-0 transition-colors">
+            <p className="text-[9px] uppercase tracking-[0.18em] text-[#1F2A22]/40 font-bold mb-1.5">
+              Crafted &amp; Developed by
+            </p>
+            <span className="inline-flex items-center gap-1.5 text-[15px] font-bold text-[#1F3D2B] group-hover:text-[#4C9A5A] transition-colors border-b-2 border-[#4C9A5A]/70 group-hover:border-[#4C9A5A] pb-0.5">
               <svg
                 viewBox="0 0 24 24"
-                className="h-4 w-4 text-[#1F2A22]/40 group-hover:text-[#4C9A5A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"
+                className="h-3.5 w-3.5 text-[#4C9A5A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
                 fill="none"
               >
                 <path
                   d="M7 17L17 7M17 7H9M17 7v8"
                   stroke="currentColor"
-                  strokeWidth="2.2"
+                  strokeWidth="2.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
-            </div>
+              Prafull Jadhav
+            </span>
           </a>
         </div>
       </div>
