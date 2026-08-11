@@ -542,9 +542,13 @@ export default function StatementPage() {
                   <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <p className="text-[12px] font-medium text-[#8A5A0A] leading-snug">
+             <p className="text-[12px] font-medium text-[#8A5A0A] leading-snug">
                 <span className="font-bold">After payment,</span> send a screenshot or contact{" "}
                 <span className="font-bold">9637972009</span> so we can record your payment.
+              </p>
+              <p className="text-[12px] font-medium text-[#8A5A0A]/70 leading-snug mt-1.5">
+                <span className="font-bold">पेमेंट केल्यानंतर,</span> कृपया स्क्रीनशॉट पाठवा किंवा{" "}
+                <span className="font-bold">9637972009</span> वर संपर्क करा जेणेकरून आम्ही तुमचे पेमेंट नोंदवू शकू.
               </p>
             </div>
           </div>

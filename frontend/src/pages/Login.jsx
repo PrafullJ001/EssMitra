@@ -7,6 +7,9 @@ export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
+  // NEW: toggle for showing/hiding the password value
+  const [showPassword, setShowPassword] = useState(false);
+
   // NEW: OTP state for new-device approval
   const [showDeviceOtp, setShowDeviceOtp] = useState(false);
   const [otp, setOtp] = useState("");
@@ -277,13 +280,43 @@ export default function Login() {
                 </span>
 
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-[#F5F3EA] border border-transparent rounded-2xl pl-11 pr-4 py-3 text-sm text-[#1F2A22] placeholder:text-[#A9B6AC] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/60 focus:bg-white focus:border-[#DCE4DD] transition-all"
+                  className="w-full bg-[#F5F3EA] border border-transparent rounded-2xl pl-11 pr-11 py-3 text-sm text-[#1F2A22] placeholder:text-[#A9B6AC] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/60 focus:bg-white focus:border-[#DCE4DD] transition-all"
                   required
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-4 flex items-center text-[#8AA890] hover:text-[#4C9A5A] transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+                      <path
+                        d="M3 3l18 18M10.58 10.58a2 2 0 0 0 2.83 2.83M9.88 5.09A9.77 9.77 0 0 1 12 5c5 0 9 4.5 10 7-.42 1.1-1.15 2.32-2.16 3.44M6.61 6.61C4.47 8.06 2.9 10.03 2 12c1 2.5 5 7 10 7 1.44 0 2.8-.34 4-.9"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+                      <path
+                        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+                    </svg>
+                  )}
+                </button>
               </div>
             </div>
 
