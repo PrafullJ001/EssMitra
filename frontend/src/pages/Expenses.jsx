@@ -1027,7 +1027,7 @@ const requestDelete = (exp) => {
         ? `from_${allPdfFrom}`
         : allPdfTo
         ? `upto_${allPdfTo}`
-        : "all";
+        : getTodayLocal();
 
     doc.save(`All_Expenses_${fileSuffix}.pdf`);
   };
