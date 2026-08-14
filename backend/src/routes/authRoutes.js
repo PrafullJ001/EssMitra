@@ -18,7 +18,7 @@ const {
   adminOnly,
 } = require('../middleware/authMiddleware');
 
-const loginRateLimiter = require('../middleware/loginRateLimiter');
+const loginRateLimiter = require('../middleware/loginRateMiddleware.js');
 
 router.post(
   '/register',
