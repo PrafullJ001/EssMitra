@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useMemo } from "react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDate } from "../../utils/formatDate";
 import PaymentForm from "./PaymentForm";
@@ -32,6 +32,28 @@ export default function FarmerHistoryTable({
   const [billNoDraft, setBillNoDraft] = useState("");
   const [billNoError, setBillNoError] = useState(null);
   const [savingBillNo, setSavingBillNo] = useState(false);
+
+  // Date filter (From / To) — filters which service cards are shown
+  // below, purely display-side. Nothing else (totals elsewhere on the
+  // page, payment/edit/delete logic) is affected since this only
+  // narrows the local `filteredServices` list used for rendering.
+  //
+  // draftFrom/draftTo track what's typed into the calendar inputs;
+  // filterFrom/filterTo (the values actually used to filter) only
+  // update when "Apply" is pressed — so nothing filters mid-pick.
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [draftFrom, setDraftFrom] = useState("");
+  const [draftTo, setDraftTo] = useState("");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+
+  // Search — filters service cards by Bill No. or Crop Name only, purely
+  // display-side, same pattern as the date filter (just narrows the local
+  // `filteredServices` list used for rendering; nothing else touched).
+  // Collapsed behind a button, same as the date filter below.
+  const [showSearch, setShowSearch] = useState(false);
+  const [draftSearch, setDraftSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Refs to each service card, used only to scroll the recently-updated
   // card into view — no other logic touched.
@@ -122,6 +144,55 @@ export default function FarmerHistoryTable({
     }
   };
 
+  // Applies the optional From/To filter, then the optional search query,
+  // on top of the services list. Empty from/to means "no restriction",
+  // same pattern as the PDF date filters elsewhere in the app. Search
+  // matches Bill No. or Crop Name only, case-insensitive.
+  const filteredServices = useMemo(() => {
+    let result = services;
+
+    if (filterFrom || filterTo) {
+      result = result.filter((s) => {
+        const d = new Date(s.serviceDate);
+        if (filterFrom && d < new Date(filterFrom)) return false;
+        if (filterTo && d > new Date(filterTo + "T23:59:59")) return false;
+        return true;
+      });
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((s) => {
+        const bill = (s.billNo || "").toLowerCase();
+        const crop = (s.cropName || "").toLowerCase();
+        return bill.includes(q) || crop.includes(q);
+      });
+    }
+
+    return result;
+  }, [services, filterFrom, filterTo, searchQuery]);
+
+  const applyDateFilter = () => {
+    setFilterFrom(draftFrom);
+    setFilterTo(draftTo);
+  };
+
+  const clearDateFilter = () => {
+    setDraftFrom("");
+    setDraftTo("");
+    setFilterFrom("");
+    setFilterTo("");
+  };
+
+  const applySearch = () => {
+    setSearchQuery(draftSearch);
+  };
+
+  const clearSearch = () => {
+    setDraftSearch("");
+    setSearchQuery("");
+  };
+
   // Payment Form
   if (payingService) {
     return (
@@ -174,6 +245,159 @@ export default function FarmerHistoryTable({
 
   return (
     <div className="space-y-4">
+      {/* SEARCH — collapsible, same pattern as the date filter below.
+          Filters cards by Bill No. or Crop Name only. Purely
+          display-side; nothing else (totals, payment/edit/delete) is
+          affected. */}
+      <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowSearch((prev) => !prev)}
+          className="w-full flex items-center justify-between px-4 py-3"
+        >
+          <span className="flex items-center gap-2 text-[13px] font-bold text-[#1F2A22]">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#1F2A22]/40" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+            </svg>
+            Search Bill No. / Crop
+          </span>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-3.5 w-3.5 text-[#1F2A22]/40 transition-transform ${showSearch ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showSearch && (
+          <div className="px-4 pb-4 space-y-2.5">
+            <input
+              type="text"
+              autoFocus
+              value={draftSearch}
+              onChange={(e) => setDraftSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+              placeholder="Bill No. or Crop Name"
+              className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-lg px-2.5 py-2 text-[13px]"
+            />
+            <button
+              type="button"
+              onClick={applySearch}
+              disabled={!draftSearch}
+              className="w-full bg-[#2B5439] text-white rounded-lg py-2 text-[12px] font-bold disabled:opacity-40"
+            >
+              Search
+            </button>
+          </div>
+        )}
+
+        {/* Inline "Applied: query" summary — only shown once a search is
+            actually applied, with its own Clear button, independent of
+            whether the panel above is expanded or collapsed. */}
+        {searchQuery && (
+          <div className="flex items-center justify-between px-4 py-2.5 bg-[#E9F3E9] border-t border-[#4C9A5A]/15">
+            <span className="text-[11px] font-bold text-[#2B5439] truncate pr-2">
+              Searching: "{searchQuery}"
+            </span>
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="text-[11px] font-bold text-[#C24949] uppercase tracking-wide shrink-0"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* DATE FILTER — collapsible From/To calendar filter, with a small
+          inline "Applied: X to Y" summary + Clear button once a range is
+          set. Purely narrows which cards render below; nothing else is
+          affected. */}
+      <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowDateFilter((prev) => !prev)}
+          className="w-full flex items-center justify-between px-4 py-3"
+        >
+          <span className="flex items-center gap-2 text-[13px] font-bold text-[#1F2A22]">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#1F2A22]/40" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Filter by Date
+          </span>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-3.5 w-3.5 text-[#1F2A22]/40 transition-transform ${showDateFilter ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showDateFilter && (
+          <div className="px-4 pb-4 space-y-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">From</label>
+                <input
+                  type="date"
+                  value={draftFrom}
+                  max={draftTo || undefined}
+                  onChange={(e) => setDraftFrom(e.target.value)}
+                  className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-lg px-2.5 py-2 text-[13px]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">To</label>
+                <input
+                  type="date"
+                  value={draftTo}
+                  min={draftFrom || undefined}
+                  onChange={(e) => setDraftTo(e.target.value)}
+                  className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-lg px-2.5 py-2 text-[13px]"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={applyDateFilter}
+              disabled={!draftFrom && !draftTo}
+              className="w-full bg-[#2B5439] text-white rounded-lg py-2 text-[12px] font-bold disabled:opacity-40"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+
+        {/* Inline "Applied: X to Y" summary — only shown once a filter is
+            actually set, with its own Clear button, independent of
+            whether the picker above is expanded or collapsed. */}
+        {(filterFrom || filterTo) && (
+          <div className="flex items-center justify-between px-4 py-2.5 bg-[#E9F3E9] border-t border-[#4C9A5A]/15">
+            <span className="text-[11px] font-bold text-[#2B5439]">
+              Applied: {filterFrom ? new Date(filterFrom).toLocaleDateString("en-IN") : "…"} →{" "}
+              {filterTo ? new Date(filterTo).toLocaleDateString("en-IN") : "…"}
+            </span>
+            <button
+              type="button"
+              onClick={clearDateFilter}
+              className="text-[11px] font-bold text-[#C24949] uppercase tracking-wide"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Delete Error */}
       {deleteError && (
         <div className="p-3.5 bg-[#FCEDED] border border-[#C24949]/20 rounded-xl flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2">
@@ -185,7 +409,19 @@ export default function FarmerHistoryTable({
         </div>
       )}
 
-      {services.map((s, index) => {
+      {/* Empty state for when a filter is applied but matches nothing —
+          the services.length === 0 check above only covers "no services
+          at all", so this covers "filter narrowed it down to zero". */}
+      {filteredServices.length === 0 ? (
+        <div className="bg-white rounded-3xl shadow-sm border border-black/[0.04] p-8 animate-in fade-in duration-300">
+          <EmptyState
+            icon="🧾"
+            title="No services in this range"
+            subtitle="Try a different date range, or clear the filter"
+          />
+        </div>
+      ) : (
+      filteredServices.map((s, index) => {
         const createdById = typeof s.createdBy === "object" ? s.createdBy?._id : s.createdBy;
         const isOwner = createdById && user?._id && String(createdById) === String(user._id);
         const canEdit = isAdmin || isOwner;
@@ -484,7 +720,8 @@ export default function FarmerHistoryTable({
             )}
           </div>
         );
-      })}
+      })
+      )}
 
       {deletingService && (
         <MathCaptchaModal

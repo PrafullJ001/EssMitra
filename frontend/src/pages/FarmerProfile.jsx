@@ -325,13 +325,13 @@ export default function FarmerProfile() {
               <button
                 type="button"
                 onClick={() => setShowAcresFilter((v) => !v)}
-                className="flex items-center gap-1 text-[11px] font-bold text-[#4C9A5A] bg-[#E9F3E9] px-2.5 py-1 rounded-lg"
+                className="flex items-center gap-1 text-[10.5px] font-bold text-[#4C9A5A] bg-[#E9F3E9] px-2.5 py-1 rounded-full active:scale-95 transition-transform"
               >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                Filter
+                Filter by Date
               </button>
             </div>
 
@@ -465,23 +465,34 @@ export default function FarmerProfile() {
               </div>
             </div>
 
-            {isAdmin && totalPending > 0 && (
-              <button
-                onClick={() => setShowSettleModal(true)}
-                className="w-full mt-3 bg-[#FEF3C7]/50 hover:bg-[#FEF3C7] border border-[#D97706]/20 text-[#D97706] rounded-xl py-2.5 text-sm font-bold transition-all"
-              >
-                Clear All Pending
-              </button>
-            )}
+            {/* Action buttons — modernized: smaller/compact, icon-led,
+                softer pill shape, tuned for one-handed mobile use. Same
+                conditions/handlers as before, only the markup changed. */}
+            <div className="mt-3 space-y-2">
+              {isAdmin && totalPending > 0 && (
+                <button
+                  onClick={() => setShowSettleModal(true)}
+                  className="w-full flex items-center justify-center gap-1.5 bg-[#FEF3C7]/60 hover:bg-[#FEF3C7] active:scale-[0.98] border border-[#D97706]/20 text-[#B45309] rounded-xl py-2.5 text-[12.5px] font-bold transition-all"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Clear All Pending
+                </button>
+              )}
 
-            {totalPending > 0 && (
-              <button
-                onClick={() => setShowBulkModal(true)}
-                className="w-full mt-2 bg-[#E9F3E9]/60 hover:bg-[#E9F3E9] border border-[#4C9A5A]/20 text-[#2B5439] rounded-xl py-2.5 text-sm font-bold transition-all"
-              >
-                Record Payment (Multiple Services)
-              </button>
-            )}
+              {totalPending > 0 && (
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="w-full flex items-center justify-center gap-1.5 bg-[#E9F3E9]/70 hover:bg-[#E9F3E9] active:scale-[0.98] border border-[#4C9A5A]/20 text-[#2B5439] rounded-xl py-2.5 text-[12.5px] font-bold transition-all"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v16l-3-2-3 2-3-2-3 2-3-2-3 2V4a1 1 0 011-1z" />
+                  </svg>
+                  Record Payment (Multiple)
+                </button>
+              )}
+            </div>
 
             <ReminderButton
               farmer={farmer}
@@ -503,9 +514,9 @@ export default function FarmerProfile() {
           {isAdmin && services.length === 0 && (
             <button
               onClick={handleDeleteFarmer}
-              className="w-full mt-4 bg-[#FCEDED]/50 text-[#C24949] hover:bg-[#FCEDED] border border-[#F3C6C6]/50 rounded-xl py-2.5 text-sm font-bold transition-all flex justify-center items-center gap-1.5"
+              className="w-full mt-4 flex items-center justify-center gap-1.5 bg-[#FCEDED]/50 text-[#C24949] hover:bg-[#FCEDED] active:scale-[0.98] border border-[#F3C6C6]/50 rounded-xl py-2.5 text-[12.5px] font-bold transition-all"
             >
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none">
                 <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Delete Farmer
@@ -513,12 +524,15 @@ export default function FarmerProfile() {
           )}
         </div>
 
-        {/* Add New Service */}
+        {/* Add New Service — modernized: shorter height, tighter padding
+            and font size for mobile, same gradient family as the header
+            for visual consistency, same onClick/navigation as before. */}
         <button
           onClick={() => navigate("/add-service", { state: { farmer } })}
-          className="w-full bg-[#4C9A5A] text-white rounded-xl py-3.5 text-base font-bold shadow-sm active:scale-[0.98] transition-all flex justify-center items-center gap-2"
+          className="w-full flex items-center justify-center gap-2 text-white rounded-2xl py-3 text-[13.5px] font-bold shadow-sm active:scale-[0.98] transition-all"
+          style={{ backgroundImage: "linear-gradient(180deg, #4C9A5A 0%, #3B7A46 100%)" }}
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
             <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           Add New Service
