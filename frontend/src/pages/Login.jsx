@@ -326,32 +326,55 @@ export default function Login() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="group w-full flex items-center justify-center gap-2 text-white rounded-2xl py-3.5 font-semibold text-sm shadow-lg shadow-[#2B5439]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] hover:brightness-105 hover:shadow-xl"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
-              }}
-            >
-              <span>{loading ? "Logging in..." : "Login"}</span>
-              {!loading && (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-                  fill="none"
-                >
-                  <path
-                    d="M5 12h14M13 6l6 6-6 6"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
+<button
+  type="submit"
+  disabled={loading}
+  className="group w-full flex items-center justify-center gap-2 text-white rounded-2xl py-3.5 font-semibold text-sm shadow-lg shadow-[#2B5439]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] hover:brightness-105 hover:shadow-xl"
+  style={{
+    backgroundImage:
+      "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
+  }}
+>
+  {loading ? (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5 animate-spin"
+      fill="none"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeOpacity="0.25"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  ) : (
+    <>
+      <span>Login</span>
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+        fill="none"
+      >
+        <path
+          d="M5 12h14M13 6l6 6-6 6"
+          stroke="white"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </>
+  )}
+</button>
           </form>
         ) : (
           /* ==============================
