@@ -7,6 +7,10 @@ export default function ManageStaffLogin() {
   const navigate = useNavigate();
 
   const [staff, setStaff] = useState([]);
+  // Admins are shown for status visibility only — no sign-out flow, since
+  // admins skip the device-trust/OTP check entirely on login (see the
+  // comment in the fetch effect below).
+  const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -23,6 +27,7 @@ export default function ManageStaffLogin() {
         // skip that check entirely on login, so signing them out here
         // wouldn't do anything meaningful.
         setStaff(data.filter((u) => u.role === "staff"));
+        setAdmins(data.filter((u) => u.role === "admin"));
       } catch (err) {
         setError(
           err.response?.data?.message || "Failed to load staff list"
@@ -118,6 +123,63 @@ export default function ManageStaffLogin() {
           </div>
         )}
 
+        {/* ADMINS — status visibility only, no sign-out controls. Uses the
+            same trustedDevices-based badge as staff, but is never
+            interactive: admins don't go through the device-trust/OTP
+            flow, so there's nothing meaningful to sign out here. */}
+        {admins.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#1F2A22]/40 px-1">
+              Admins
+            </p>
+            {admins.map((admin) => {
+              const deviceCount = admin.trustedDevices?.length || 0;
+              const isTrusted = deviceCount > 0;
+
+              return (
+                <div
+                  key={admin._id}
+                  className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 flex items-center gap-4"
+                >
+                  <div className="h-12 w-12 rounded-2xl bg-[#F6F2E9] text-[#1F3D2B]/60 flex items-center justify-center shrink-0 border border-[#1F3D2B]/5 font-bold text-sm">
+                    {admin.name
+                      .split(" ")
+                      .map((w) => w[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase()}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[#1F2A22] text-base leading-tight mb-0.5 truncate">
+                      {admin.name}
+                    </p>
+                    <p className="text-[13px] text-[#1F2A22]/50 font-medium mb-1.5">
+                      {admin.mobile}
+                    </p>
+
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        isTrusted
+                          ? "text-[#4C9A5A] bg-[#E9F3E9] border-[#4C9A5A]/20"
+                          : "text-[#1F2A22]/40 bg-[#F6F2E9] border-black/[0.04]"
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          isTrusted ? "bg-[#4C9A5A]" : "bg-[#1F2A22]/30"
+                        }`}
+                      />
+                      {isTrusted ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* STAFF — unchanged: same list, same sign-out confirm flow */}
         {staff.length === 0 ? (
           <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-8 text-center">
             <p className="text-sm text-[#1F2A22]/50 font-medium">
@@ -125,7 +187,13 @@ export default function ManageStaffLogin() {
             </p>
           </div>
         ) : (
-          staff.map((member) => {
+          <div className="space-y-3">
+            {admins.length > 0 && (
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[#1F2A22]/40 px-1 pt-1">
+                Staff
+              </p>
+            )}
+            {staff.map((member) => {
             const deviceCount = member.trustedDevices?.length || 0;
             const isTrusted = deviceCount > 0;
 
@@ -196,7 +264,8 @@ export default function ManageStaffLogin() {
                 )}
               </div>
             );
-          })
+            })}
+          </div>
         )}
       </div>
     </div>
