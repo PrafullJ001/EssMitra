@@ -131,7 +131,7 @@ export default function ManageStaffLogin() {
           <div className="space-y-3">
             <div className="flex items-center gap-2.5 px-1 mb-1">
               <span className="h-7 w-1.5 rounded-full bg-[#4C9A5A]" />
-              <p className="text-[19px] font-black text-[#1F2A22] tracking-tight">
+              <p className="text-[19px] font-black text-[#ffffff] tracking-tight">
                 Admins
               </p>
             </div>
