@@ -104,16 +104,18 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F6F2E9] px-6">
         <div className="max-w-sm w-full flex flex-col items-center text-center">
-          <div className="relative mb-6">
+          {/* Icon — layered glow + ring + gradient badge, softer spin */}
+          <div className="relative mb-7">
             <div
-              className="absolute inset-0 rounded-full blur-2xl opacity-60 animate-pulse"
+              className="absolute inset-0 rounded-full blur-2xl opacity-50 animate-pulse"
               style={{
                 backgroundImage:
                   "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
               }}
             />
+            <div className="absolute -inset-2 rounded-full border border-[#4C9A5A]/15" />
             <div
-              className="relative h-20 w-20 rounded-full flex items-center justify-center shadow-lg"
+              className="relative h-20 w-20 rounded-full flex items-center justify-center shadow-[0_8px_24px_rgba(43,84,57,0.25)]"
               style={{
                 backgroundImage:
                   "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
@@ -122,7 +124,7 @@ export default function Dashboard() {
               <svg
                 viewBox="0 0 24 24"
                 className="h-9 w-9 text-white animate-spin"
-                style={{ animationDuration: "1.4s" }}
+                style={{ animationDuration: "1.1s" }}
                 fill="none"
               >
                 <circle
@@ -143,21 +145,44 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 mb-5">
-            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "300ms" }} />
+          {/* Progress dots — softer, staggered scale-pulse instead of bounce */}
+          <div className="flex items-center gap-2 mb-6">
+            <span
+              className="h-2 w-2 rounded-full bg-[#4C9A5A]"
+              style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "0ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-[#4C9A5A]"
+              style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "200ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-[#4C9A5A]"
+              style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "400ms" }}
+            />
           </div>
+          <style>{`
+            @keyframes pulse-dot {
+              0%, 100% { opacity: 0.3; transform: scale(0.85); }
+              50% { opacity: 1; transform: scale(1.15); }
+            }
+          `}</style>
 
-          <h2 className="text-[#1F3D2B] text-lg font-bold leading-tight mb-1.5">
-            Loading your dashboard...
+          <h2 className="text-[#1F3D2B] text-[17px] font-bold leading-tight mb-1.5 tracking-tight">
+            Loading your dashboard
           </h2>
-          <p className="text-[#1F2A22]/60 text-sm font-medium leading-snug mb-0.5">
+          <p className="text-[#1F2A22]/55 text-[13.5px] font-medium leading-snug mb-5">
             तुमचे डॅशबोर्ड लोड होत आहे...
           </p>
 
-          <div className="mt-5 bg-white/70 border border-black/[0.05] rounded-2xl px-4 py-3">
-            <p className="text-[#1F2A22]/55 text-xs font-medium leading-relaxed">
+          {/* Info card — icon-led, softer layered shadow instead of flat */}
+          <div className="w-full bg-white/80 backdrop-blur-sm border border-black/[0.05] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.03)] px-4 py-3.5 flex items-start gap-2.5">
+            <span className="h-5 w-5 shrink-0 rounded-full bg-[#4C9A5A]/12 flex items-center justify-center mt-0.5">
+              <svg viewBox="0 0 24 24" className="h-3 w-3 text-[#2B5439]" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4M12 16h.01" />
+              </svg>
+            </span>
+            <p className="text-[#1F2A22]/60 text-[12px] font-medium leading-relaxed text-left">
               This can take 20–30 seconds on the first load. Thanks for
               your patience!
               <br />
@@ -174,7 +199,7 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F6F2E9] px-6">
-        <div className="max-w-sm w-full bg-white/50 backdrop-blur-sm rounded-3xl border border-[#F3C6C6]/50 shadow-sm p-8 text-center flex flex-col items-center transition-all">
+        <div className="max-w-sm w-full bg-white/60 backdrop-blur-sm rounded-3xl border border-[#F3C6C6]/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 text-center flex flex-col items-center transition-all">
           <div className="h-16 w-16 rounded-2xl bg-[#FCEDED] border border-[#F3C6C6] flex items-center justify-center mb-4 shadow-inner">
             <svg viewBox="0 0 24 24" className="h-8 w-8 text-[#C24949]" fill="none">
               <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
