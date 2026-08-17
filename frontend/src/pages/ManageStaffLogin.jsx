@@ -129,9 +129,12 @@ export default function ManageStaffLogin() {
             flow, so there's nothing meaningful to sign out here. */}
         {admins.length > 0 && (
           <div className="space-y-3">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[#1F2A22]/40 px-1">
-              Admins
-            </p>
+            <div className="flex items-center gap-2.5 px-1 mb-1">
+              <span className="h-7 w-1.5 rounded-full bg-[#4C9A5A]" />
+              <p className="text-[19px] font-black text-[#1F2A22] tracking-tight">
+                Admins
+              </p>
+            </div>
             {admins.map((admin) => {
               const deviceCount = admin.trustedDevices?.length || 0;
               const isTrusted = deviceCount > 0;
@@ -189,9 +192,12 @@ export default function ManageStaffLogin() {
         ) : (
           <div className="space-y-3">
             {admins.length > 0 && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-[#1F2A22]/40 px-1 pt-1">
-                Staff
-              </p>
+              <div className="flex items-center gap-2.5 px-1 pt-2 mb-1">
+                <span className="h-7 w-1.5 rounded-full bg-[#C24949]" />
+                <p className="text-[19px] font-black text-[#1F2A22] tracking-tight">
+                  Staff
+                </p>
+              </div>
             )}
             {staff.map((member) => {
             const deviceCount = member.trustedDevices?.length || 0;
