@@ -536,17 +536,14 @@ export default function StatementPage() {
               </p>
             </div>
 
+            {/* After-payment notice — Marathi only now (English line removed) */}
             <div className="w-full mt-4 bg-gradient-to-br from-[#FEF3C7]/70 to-[#FEF3C7]/30 border border-[#D97706]/15 rounded-2xl px-4 py-3.5 flex items-start gap-3 text-left">
               <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm border border-[#D97706]/15 shrink-0">
                 <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#D97706]" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-             <p className="text-[12px] font-medium text-[#8A5A0A] leading-snug">
-                <span className="font-bold">After payment,</span> send a screenshot or contact{" "}
-                <span className="font-bold">9637972009</span> so we can record your payment.
-              </p>
-              <p className="text-[12px] font-medium text-[#8A5A0A]/70 leading-snug mt-1.5">
+              <p className="text-[12.5px] font-medium text-[#8A5A0A] leading-relaxed">
                 <span className="font-bold">पेमेंट केल्यानंतर,</span> कृपया स्क्रीनशॉट पाठवा किंवा{" "}
                 <span className="font-bold">9637972009</span> वर संपर्क करा जेणेकरून आम्ही तुमचे पेमेंट नोंदवू शकू.
               </p>
