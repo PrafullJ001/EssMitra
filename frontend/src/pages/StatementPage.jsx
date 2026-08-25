@@ -62,68 +62,81 @@ export default function StatementPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F2E9] px-6">
-        <div className="max-w-sm w-full flex flex-col items-center text-center">
-          <div className="relative mb-6">
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#F6F2E9] px-6">
+        {/* Ambient background — soft green glow orbs, consistent with the
+            Dashboard's loading screen */}
+        <div
+          className="absolute -top-32 -left-24 h-72 w-72 rounded-full blur-3xl opacity-30"
+          style={{
+            backgroundImage: "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
+            animation: "drift-a 8s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute -bottom-28 -right-16 h-80 w-80 rounded-full blur-3xl opacity-20"
+          style={{
+            backgroundImage: "radial-gradient(circle, #2B5439 0%, transparent 70%)",
+            animation: "drift-b 9s ease-in-out infinite",
+          }}
+        />
+
+        <style>{`
+          @keyframes drift-a {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(20px, 15px) scale(1.08); }
+          }
+          @keyframes drift-b {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-15px, -20px) scale(1.06); }
+          }
+          @keyframes ring-spin {
+            to { transform: rotate(360deg); }
+          }
+          @keyframes dot-bounce {
+            0%, 80%, 100% { transform: translateY(0) scale(0.8); opacity: 0.5; }
+            40% { transform: translateY(-6px) scale(1); opacity: 1; }
+          }
+        `}</style>
+
+        {/* Card — white, matching every other card in the app */}
+        <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center bg-white/90 backdrop-blur-sm border border-black/[0.05] rounded-[2rem] shadow-[0_20px_60px_rgba(43,84,57,0.08)] px-7 py-9">
+          {/* Loader — single clean circular spinner, no icon inside */}
+          <div className="relative h-16 w-16 mb-6 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-4 border-[#4C9A5A]/15" />
             <div
-              className="absolute inset-0 rounded-full blur-2xl opacity-60 animate-pulse"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
-              }}
+              className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#4C9A5A]"
+              style={{ animation: "ring-spin 0.9s linear infinite" }}
             />
-            <div
-              className="relative h-20 w-20 rounded-full flex items-center justify-center shadow-lg"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-9 w-9 text-white animate-spin"
-                style={{ animationDuration: "1.4s" }}
-                fill="none"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  opacity="0.25"
-                />
-                <path
-                  d="M21 12a9 9 0 0 0-9-9"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 mb-5">
-            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="h-2 w-2 rounded-full bg-[#4C9A5A] animate-bounce" style={{ animationDelay: "300ms" }} />
-          </div>
-
-          <h2 className="text-[#1F3D2B] text-lg font-bold leading-tight mb-1.5">
-            Loading your statement...
+          {/* Heading block */}
+          <h2 className="text-[#1F3D2B] text-[18px] font-bold leading-tight mb-1">
+            Loading your statement
           </h2>
-          <p className="text-[#1F2A22]/60 text-sm font-medium leading-snug mb-0.5">
+          <p className="text-[#1F2A22]/55 text-[13px] font-medium leading-snug mb-6">
             तुमचे स्टेटमेंट लोड होत आहे...
           </p>
 
-          <div className="mt-5 bg-white/70 border border-black/[0.05] rounded-2xl px-4 py-3">
-            <p className="text-[#1F2A22]/55 text-xs font-medium leading-relaxed">
-              This can take 20–30 seconds on the first load. Thanks for
-              your patience!
-              <br />
-              <span className="text-[#1F2A22]/45">
-                पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
-              </span>
+          {/* Modern 3-dot loading indicator */}
+          <div className="flex items-center gap-2.5 mb-6">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "0ms" }} />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "150ms" }} />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "300ms" }} />
+          </div>
+
+          <div className="w-full h-px bg-black/[0.06] mb-4" />
+
+          {/* Info note — structured as two clearly separated lines instead
+              of one run-on paragraph, English first then Marathi. */}
+          <div className="w-full bg-[#F6F2E9]/70 border border-black/[0.04] rounded-xl px-4 py-3.5 text-left">
+            <p className="text-[11px] font-bold text-[#2B5439] uppercase tracking-wide mb-1.5">
+              Please wait
+            </p>
+            <p className="text-[#1F2A22]/70 text-[12px] font-medium leading-relaxed mb-2">
+              This can take 20–30 seconds on the first load. Thanks for your patience!
+            </p>
+            <p className="text-[#1F2A22]/50 text-[12px] font-medium leading-relaxed">
+              पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
             </p>
           </div>
         </div>
