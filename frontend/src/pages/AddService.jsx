@@ -1716,7 +1716,7 @@ export default function AddService() {
 
               <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-4">
                 <h2 className="text-sm font-bold text-[#1F2A22]">
-                  Extras
+                  Optional
                 </h2>
 
                 <Field label="Bill / Receipt Photo (optional) / बिल / पावतीचा फोटो (ऐच्छिक)">

@@ -102,25 +102,22 @@ export default function Dashboard() {
 
   if (loading && !stats) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0F211A] px-6">
-        {/* Ambient background — soft moving gradient orbs instead of a flat color */}
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#F6F2E9] px-6">
+        {/* Ambient background — soft moving gradient orbs in the app's own
+            green palette, kept light instead of a dark backdrop */}
         <div
-          className="absolute -top-32 -left-24 h-72 w-72 rounded-full blur-3xl opacity-40"
+          className="absolute -top-32 -left-24 h-72 w-72 rounded-full blur-3xl opacity-30"
           style={{
             backgroundImage: "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
             animation: "drift-a 8s ease-in-out infinite",
           }}
         />
         <div
-          className="absolute -bottom-28 -right-16 h-80 w-80 rounded-full blur-3xl opacity-30"
+          className="absolute -bottom-28 -right-16 h-80 w-80 rounded-full blur-3xl opacity-20"
           style={{
             backgroundImage: "radial-gradient(circle, #2B5439 0%, transparent 70%)",
             animation: "drift-b 9s ease-in-out infinite",
           }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
-          style={{ backgroundImage: "repeating-linear-gradient(115deg, #ffffff 0px, #ffffff 1px, transparent 1px, transparent 14px)" }}
         />
 
         <style>{`
@@ -135,88 +132,51 @@ export default function Dashboard() {
           @keyframes ring-spin {
             to { transform: rotate(360deg); }
           }
-          @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-          }
-          @keyframes pulse-dot {
-            0%, 100% { opacity: 0.3; transform: scale(0.85); }
-            50% { opacity: 1; transform: scale(1.15); }
+          @keyframes dot-bounce {
+            0%, 80%, 100% { transform: translateY(0) scale(0.8); opacity: 0.5; }
+            40% { transform: translateY(-6px) scale(1); opacity: 1; }
           }
         `}</style>
 
-        {/* Glass card */}
-        <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center bg-white/[0.06] backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.35)] px-7 py-9">
-          {/* Loader — dual-ring orbit around a solid badge */}
-          <div className="relative h-24 w-24 mb-7 flex items-center justify-center">
+        {/* Card — white, matching every other card in the app */}
+        <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center bg-white/90 backdrop-blur-sm border border-black/[0.05] rounded-[2rem] shadow-[0_20px_60px_rgba(43,84,57,0.08)] px-7 py-9">
+          {/* Loader — single clean circular spinner, no icon inside */}
+          <div className="relative h-16 w-16 mb-6 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-4 border-[#4C9A5A]/15" />
             <div
-              className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#4C9A5A] border-r-[#4C9A5A]/40"
-              style={{ animation: "ring-spin 1.4s linear infinite" }}
+              className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#4C9A5A]"
+              style={{ animation: "ring-spin 0.9s linear infinite" }}
             />
-            <div
-              className="absolute inset-2 rounded-full border-2 border-transparent border-b-white/40 border-l-white/10"
-              style={{ animation: "ring-spin 2.2s linear infinite reverse" }}
-            />
-            <div
-              className="relative h-14 w-14 rounded-2xl flex items-center justify-center shadow-[0_8px_24px_rgba(76,154,90,0.45)]"
-              style={{ backgroundImage: "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)" }}
-            >
-              <svg viewBox="0 0 24 24" className="h-7 w-7 text-white" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            </div>
           </div>
 
-          <h2 className="text-white text-[18px] font-bold leading-tight mb-1.5 tracking-tight">
+          {/* Heading block */}
+          <h2 className="text-[#1F3D2B] text-[18px] font-bold leading-tight mb-1">
             Loading your dashboard
           </h2>
-          <p className="text-[#B9D9BE]/80 text-[13px] font-medium leading-snug mb-5">
+          <p className="text-[#1F2A22]/55 text-[13px] font-medium leading-snug mb-6">
             तुमचे डॅशबोर्ड लोड होत आहे...
           </p>
 
-          {/* Progress dots */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4C9A5A]" style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "0ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4C9A5A]" style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "200ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4C9A5A]" style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "400ms" }} />
+          {/* Modern 3-dot loading indicator instead of empty skeleton boxes */}
+          <div className="flex items-center gap-2.5 mb-6">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "0ms" }} />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "150ms" }} />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "300ms" }} />
           </div>
 
-          {/* Skeleton preview — hints at the stat cards about to load in,
-              purely decorative shimmer blocks, no real data. */}
-          <div className="w-full grid grid-cols-3 gap-2 mb-6">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-14 rounded-xl bg-white/[0.07] border border-white/10 overflow-hidden relative"
-              >
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)",
-                    backgroundSize: "200% 100%",
-                    animation: `shimmer 1.6s ease-in-out infinite`,
-                    animationDelay: `${i * 150}ms`,
-                  }}
-                />
-              </div>
-            ))}
-          </div>
+          <div className="w-full h-px bg-black/[0.06] mb-4" />
 
-          {/* Info note */}
-          <div className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 flex items-start gap-2.5">
-            <span className="h-5 w-5 shrink-0 rounded-full bg-[#4C9A5A]/20 flex items-center justify-center mt-0.5">
-              <svg viewBox="0 0 24 24" className="h-3 w-3 text-[#8FCB9C]" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4M12 16h.01" />
-              </svg>
-            </span>
-            <p className="text-white/60 text-[11.5px] font-medium leading-relaxed text-left">
-              This can take 20–30 seconds on the first load. Thanks for
-              your patience!
-              <br />
-              <span className="text-white/40">
-                पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
-              </span>
+          {/* Info note — structured as two clearly separated lines instead
+              of one run-on paragraph, English first then Marathi. */}
+          <div className="w-full bg-[#F6F2E9]/70 border border-black/[0.04] rounded-xl px-4 py-3.5 text-left">
+            <p className="text-[11px] font-bold text-[#2B5439] uppercase tracking-wide mb-1.5">
+              Please wait
+            </p>
+            <p className="text-[#1F2A22]/70 text-[12px] font-medium leading-relaxed mb-2">
+              This can take 20–30 seconds on the first load. Thanks for your patience!
+            </p>
+            <p className="text-[#1F2A22]/50 text-[12px] font-medium leading-relaxed">
+              पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
             </p>
           </div>
         </div>
