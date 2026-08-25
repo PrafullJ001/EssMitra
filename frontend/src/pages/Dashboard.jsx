@@ -102,119 +102,91 @@ export default function Dashboard() {
 
   if (loading && !stats) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0F211A] px-6">
-        {/* Ambient background — soft moving gradient orbs instead of a flat color */}
-        <div
-          className="absolute -top-32 -left-24 h-72 w-72 rounded-full blur-3xl opacity-40"
-          style={{
-            backgroundImage: "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
-            animation: "drift-a 8s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute -bottom-28 -right-16 h-80 w-80 rounded-full blur-3xl opacity-30"
-          style={{
-            backgroundImage: "radial-gradient(circle, #2B5439 0%, transparent 70%)",
-            animation: "drift-b 9s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
-          style={{ backgroundImage: "repeating-linear-gradient(115deg, #ffffff 0px, #ffffff 1px, transparent 1px, transparent 14px)" }}
-        />
-
-        <style>{`
-          @keyframes drift-a {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(20px, 15px) scale(1.08); }
-          }
-          @keyframes drift-b {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(-15px, -20px) scale(1.06); }
-          }
-          @keyframes ring-spin {
-            to { transform: rotate(360deg); }
-          }
-          @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-          }
-          @keyframes pulse-dot {
-            0%, 100% { opacity: 0.3; transform: scale(0.85); }
-            50% { opacity: 1; transform: scale(1.15); }
-          }
-        `}</style>
-
-        {/* Glass card */}
-        <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center bg-white/[0.06] backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.35)] px-7 py-9">
-          {/* Loader — dual-ring orbit around a solid badge */}
-          <div className="relative h-24 w-24 mb-7 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#F6F2E9] px-6">
+        <div className="max-w-sm w-full flex flex-col items-center text-center">
+          {/* Icon — layered glow + ring + gradient badge, softer spin */}
+          <div className="relative mb-7">
             <div
-              className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#4C9A5A] border-r-[#4C9A5A]/40"
-              style={{ animation: "ring-spin 1.4s linear infinite" }}
+              className="absolute inset-0 rounded-full blur-2xl opacity-50 animate-pulse"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle, #4C9A5A 0%, transparent 70%)",
+              }}
             />
+            <div className="absolute -inset-2 rounded-full border border-[#4C9A5A]/15" />
             <div
-              className="absolute inset-2 rounded-full border-2 border-transparent border-b-white/40 border-l-white/10"
-              style={{ animation: "ring-spin 2.2s linear infinite reverse" }}
-            />
-            <div
-              className="relative h-14 w-14 rounded-2xl flex items-center justify-center shadow-[0_8px_24px_rgba(76,154,90,0.45)]"
-              style={{ backgroundImage: "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)" }}
+              className="relative h-20 w-20 rounded-full flex items-center justify-center shadow-[0_8px_24px_rgba(43,84,57,0.25)]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
+              }}
             >
-              <svg viewBox="0 0 24 24" className="h-7 w-7 text-white" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              <svg
+                viewBox="0 0 24 24"
+                className="h-9 w-9 text-white animate-spin"
+                style={{ animationDuration: "1.1s" }}
+                fill="none"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="9"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  opacity="0.25"
+                />
+                <path
+                  d="M21 12a9 9 0 0 0-9-9"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
               </svg>
             </div>
           </div>
 
-          <h2 className="text-white text-[18px] font-bold leading-tight mb-1.5 tracking-tight">
+          {/* Progress dots — softer, staggered scale-pulse instead of bounce */}
+          <div className="flex items-center gap-2 mb-6">
+            <span
+              className="h-2 w-2 rounded-full bg-[#4C9A5A]"
+              style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "0ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-[#4C9A5A]"
+              style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "200ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-[#4C9A5A]"
+              style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "400ms" }}
+            />
+          </div>
+          <style>{`
+            @keyframes pulse-dot {
+              0%, 100% { opacity: 0.3; transform: scale(0.85); }
+              50% { opacity: 1; transform: scale(1.15); }
+            }
+          `}</style>
+
+          <h2 className="text-[#1F3D2B] text-[17px] font-bold leading-tight mb-1.5 tracking-tight">
             Loading your dashboard
           </h2>
-          <p className="text-[#B9D9BE]/80 text-[13px] font-medium leading-snug mb-5">
+          <p className="text-[#1F2A22]/55 text-[13.5px] font-medium leading-snug mb-5">
             तुमचे डॅशबोर्ड लोड होत आहे...
           </p>
 
-          {/* Progress dots */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4C9A5A]" style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "0ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4C9A5A]" style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "200ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4C9A5A]" style={{ animation: "pulse-dot 1.2s ease-in-out infinite", animationDelay: "400ms" }} />
-          </div>
-
-          {/* Skeleton preview — hints at the stat cards about to load in,
-              purely decorative shimmer blocks, no real data. */}
-          <div className="w-full grid grid-cols-3 gap-2 mb-6">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-14 rounded-xl bg-white/[0.07] border border-white/10 overflow-hidden relative"
-              >
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)",
-                    backgroundSize: "200% 100%",
-                    animation: `shimmer 1.6s ease-in-out infinite`,
-                    animationDelay: `${i * 150}ms`,
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Info note */}
-          <div className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 flex items-start gap-2.5">
-            <span className="h-5 w-5 shrink-0 rounded-full bg-[#4C9A5A]/20 flex items-center justify-center mt-0.5">
-              <svg viewBox="0 0 24 24" className="h-3 w-3 text-[#8FCB9C]" fill="none" stroke="currentColor" strokeWidth="2.5">
+          {/* Info card — icon-led, softer layered shadow instead of flat */}
+          <div className="w-full bg-white/80 backdrop-blur-sm border border-black/[0.05] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.03)] px-4 py-3.5 flex items-start gap-2.5">
+            <span className="h-5 w-5 shrink-0 rounded-full bg-[#4C9A5A]/12 flex items-center justify-center mt-0.5">
+              <svg viewBox="0 0 24 24" className="h-3 w-3 text-[#2B5439]" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4M12 16h.01" />
               </svg>
             </span>
-            <p className="text-white/60 text-[11.5px] font-medium leading-relaxed text-left">
+            <p className="text-[#1F2A22]/60 text-[12px] font-medium leading-relaxed text-left">
               This can take 20–30 seconds on the first load. Thanks for
               your patience!
               <br />
-              <span className="text-white/40">
+              <span className="text-[#1F2A22]/45">
                 पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
               </span>
             </p>
