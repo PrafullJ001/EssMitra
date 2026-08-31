@@ -184,7 +184,7 @@ export default function Payments() {
   };
 
   // Builds a PDF for one village: unique pending farmers, showing
-  // Name, Mobile, Pending Acres, Total Bill, Collected, Total Pending.
+  // Name, Mobile, Total Bill, Collected, Total Pending.
   const handleGenerateVillagePdf = (village) => {
     setGeneratingVillage(village);
     try {
@@ -206,7 +206,6 @@ export default function Payments() {
       const rows = farmersInVillage.map((f) => [
         f.fullName,
         f.mobile,
-        f.pendingAcres.toFixed(2),
         formatCurrencyForPdf(f.totalAmount),
         formatCurrencyForPdf(f.collectedAmount),
         formatCurrencyForPdf(f.pendingAmount),
@@ -214,7 +213,7 @@ export default function Payments() {
 
       autoTable(doc, {
         startY: 40,
-        head: [["Farmer Name", "Mobile No.", "Pending Acres", "Total Bill", "Collected", "Total Pending"]],
+        head: [["Farmer Name", "Mobile No.", "Total Bill", "Collected", "Total Pending"]],
         body: rows,
         styles: { fontSize: 8 },
         headStyles: { fillColor: [76, 154, 90] },
@@ -272,7 +271,6 @@ export default function Payments() {
         const rows = farmers.map((f) => [
           f.fullName,
           f.mobile,
-          f.pendingAcres.toFixed(2),
           formatCurrencyForPdf(f.totalAmount),
           formatCurrencyForPdf(f.collectedAmount),
           formatCurrencyForPdf(f.pendingAmount),
@@ -280,7 +278,7 @@ export default function Payments() {
 
         autoTable(doc, {
           startY: 40,
-          head: [["Farmer Name", "Mobile No.", "Pending Acres", "Total Bill", "Collected", "Total Pending"]],
+          head: [["Farmer Name", "Mobile No.", "Total Bill", "Collected", "Total Pending"]],
           body: rows,
           styles: { fontSize: 8 },
           headStyles: { fillColor: [76, 154, 90] },
