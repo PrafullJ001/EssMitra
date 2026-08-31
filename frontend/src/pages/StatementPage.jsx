@@ -105,7 +105,7 @@ export default function StatementPage() {
             <div className="absolute inset-0 rounded-full border-4 border-[#4C9A5A]/15" />
             <div
               className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#4C9A5A]"
-              style={{ animation: "ring-spin 0.9s linear infinite" }}
+              style={{ animation: "ring-spin 1.8s linear infinite" }}
             />
           </div>
 
@@ -113,7 +113,7 @@ export default function StatementPage() {
           <h2 className="text-[#1F3D2B] text-[18px] font-bold leading-tight mb-1">
             Loading your statement
           </h2>
-          <p className="text-[#1F2A22]/55 text-[13px] font-medium leading-snug mb-6">
+          <p className="text-[#1F2A22]/55 text-[13px] font-medium leading-snug mb-6 [text-wrap:balance]">
             तुमचे स्टेटमेंट लोड होत आहे...
           </p>
 
@@ -132,10 +132,10 @@ export default function StatementPage() {
             <p className="text-[11px] font-bold text-[#2B5439] uppercase tracking-wide mb-1.5">
               Please wait
             </p>
-            <p className="text-[#1F2A22]/70 text-[12px] font-medium leading-relaxed mb-2">
+            <p className="text-[#1F2A22]/70 text-[12px] font-medium leading-relaxed mb-2 [text-wrap:balance]">
               This can take 20–30 seconds on the first load. Thanks for your patience!
             </p>
-            <p className="text-[#1F2A22]/50 text-[12px] font-medium leading-relaxed">
+            <p className="text-[#1F2A22]/50 text-[12px] font-medium leading-relaxed [text-wrap:balance]">
               पहिल्यांदा लोड होताना 20-30 सेकंद लागू शकतात. कृपया थांबा.
             </p>
           </div>
@@ -556,7 +556,7 @@ export default function StatementPage() {
                   <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <p className="text-[12.5px] font-medium text-[#8A5A0A] leading-relaxed">
+              <p className="text-[12.5px] font-medium text-[#8A5A0A] leading-relaxed [text-wrap:balance]">
                 <span className="font-bold">पेमेंट केल्यानंतर,</span> कृपया स्क्रीनशॉट पाठवा किंवा{" "}
                 <span className="font-bold">9637972009</span> वर संपर्क करा जेणेकरून आम्ही तुमचे पेमेंट नोंदवू शकू.
               </p>
