@@ -138,8 +138,8 @@ export default function Dashboard() {
           }
         `}</style>
 
-        {/* Card — white, matching every other card in the app */}
-        <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center bg-white/90 backdrop-blur-sm border border-black/[0.05] rounded-[2rem] shadow-[0_20px_60px_rgba(43,84,57,0.08)] px-7 py-9">
+        {/* Content sits directly on the page background — no card wrapper */}
+        <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center px-7 py-9">
           {/* Loader — single clean circular spinner, no icon inside */}
           <div className="relative h-16 w-16 mb-6 flex items-center justify-center">
             <div className="absolute inset-0 rounded-full border-4 border-[#4C9A5A]/15" />
@@ -147,6 +147,13 @@ export default function Dashboard() {
               className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#4C9A5A]"
               style={{ animation: "ring-spin 1.8s linear infinite" }}
             />
+          </div>
+
+          {/* Modern 3-dot loading indicator instead of empty skeleton boxes */}
+          <div className="flex items-center gap-2.5 mb-6">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "0ms" }} />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "150ms" }} />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "300ms" }} />
           </div>
 
           {/* Heading block */}
@@ -157,21 +164,8 @@ export default function Dashboard() {
             तुमचे डॅशबोर्ड लोड होत आहे...
           </p>
 
-          {/* Modern 3-dot loading indicator instead of empty skeleton boxes */}
-          <div className="flex items-center gap-2.5 mb-6">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "0ms" }} />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "150ms" }} />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#4C9A5A]" style={{ animation: "dot-bounce 1s ease-in-out infinite", animationDelay: "300ms" }} />
-          </div>
-
-          <div className="w-full h-px bg-black/[0.06] mb-4" />
-
-          {/* Info note — structured as two clearly separated lines instead
-              of one run-on paragraph, English first then Marathi. */}
+          {/* Info note — just the two lines, no label or divider */}
           <div className="w-full bg-[#F6F2E9]/70 border border-black/[0.04] rounded-xl px-4 py-3.5 text-left">
-            <p className="text-[11px] font-bold text-[#2B5439] uppercase tracking-wide mb-1.5">
-              Please wait
-            </p>
             <p className="text-[#1F2A22]/70 text-[12px] font-medium leading-relaxed mb-2 [text-wrap:balance]">
               This can take 20–30 seconds on the first load. Thanks for your patience!
             </p>
