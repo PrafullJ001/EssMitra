@@ -44,7 +44,7 @@ const CROP_LABELS = {
   Thompson: "Thompson (थॉम्पसन)",
   Sudhakar: "Sudhakar (सुधाकर)",
   Sonaka: "Sonaka (सोनाका)",
-  Anuksha: "Anuksha (अनुक्षा)",
+  Anuksha: "Anuksha (अनुष्का)",
   "Sharad Black": "Sharad Black (शरद ब्लॅक)",
   "Black Jumbo": "Black Jumbo (ब्लॅक जंबो)",
   Other: "Other (इतर)",
