@@ -237,7 +237,7 @@ export default function Login() {
                     }
                     setIdentifier(val);
                   }}
-                  placeholder="98765 43210 or you@farm.com"
+                  placeholder="Enter your email or mobile"
                   className="w-full bg-[#F5F3EA] border border-transparent rounded-2xl pl-11 pr-4 py-3 text-sm text-[#1F2A22] placeholder:text-[#A9B6AC] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/60 focus:bg-white focus:border-[#DCE4DD] transition-all"
                   required
                 />
