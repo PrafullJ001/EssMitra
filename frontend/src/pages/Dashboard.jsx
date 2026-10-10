@@ -18,6 +18,31 @@ const daysAgo = (n) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+// Recent preset now asks for 30 entries (was 15).
+const RECENT_ENTRIES_LIMIT = 30;
+
+// "No Bill" list loads this many per page while scrolling.
+const NO_BILL_PAGE_SIZE = 20;
+
+// Field names a service's bill number can be stored under. Keep this the same
+// as the backend (dashboardController.js). If you use a custom name, add it here.
+const BILL_FIELD_CANDIDATES = [
+  "billNumber",
+  "billNo",
+  "billNum",
+  "bill_no",
+  "billNumberText",
+  "invoiceNumber",
+  "invoiceNo",
+];
+
+// A service has a bill when any bill field holds a non-empty value.
+const hasBillNumber = (service) =>
+  BILL_FIELD_CANDIDATES.some((field) => {
+    const value = service?.[field];
+    return value !== undefined && value !== null && String(value).trim() !== "";
+  });
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -34,6 +59,14 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const isFirstSearchRender = useRef(true);
 
+  // "No Bill" list — kept separate from `stats` so the stat cards above
+  // are never overwritten while this view is open.
+  const [noBillServices, setNoBillServices] = useState([]);
+  const [noBillPage, setNoBillPage] = useState(1);
+  const [noBillHasMore, setNoBillHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef(null);
+
   const loadStats = async (params = {}) => {
     setLoading(true);
     try {
@@ -46,8 +79,40 @@ export default function Dashboard() {
     }
   };
 
+  // Loads one page of services that have no bill. Page 1 replaces the
+  // list, later pages append to it (infinite scroll).
+  const loadNoBill = async (page = 1, search = searchQuery) => {
+    if (page === 1) setLoading(true);
+    else setLoadingMore(true);
+    try {
+      const { data } = await getDashboardStats({
+        noBill: true,
+        page,
+        limit: NO_BILL_PAGE_SIZE,
+        search,
+      });
+      const items = data.recentServices || [];
+      setNoBillServices((prev) => {
+        if (page === 1) return items;
+        const seen = new Set(prev.map((s) => s._id));
+        return [...prev, ...items.filter((s) => !seen.has(s._id))];
+      });
+      setNoBillPage(page);
+      setNoBillHasMore(items.length >= NO_BILL_PAGE_SIZE);
+    } catch (err) {
+      if (page === 1) {
+        setError(err.response?.data?.message || "Failed to load dashboard");
+      } else {
+        setNoBillHasMore(false);
+      }
+    } finally {
+      if (page === 1) setLoading(false);
+      else setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
-    loadStats();
+    loadStats({ limit: RECENT_ENTRIES_LIMIT });
   }, []);
 
   useEffect(() => {
@@ -56,17 +121,42 @@ export default function Dashboard() {
       return;
     }
     const handle = setTimeout(() => {
-      loadStats({ ...dateRange, search: searchQuery });
+      if (activePreset === "No Bill") {
+        loadNoBill(1, searchQuery);
+        return;
+      }
+      loadStats({
+        ...dateRange,
+        search: searchQuery,
+        ...(activePreset === "Recent" ? { limit: RECENT_ENTRIES_LIMIT } : {}),
+      });
     }, 400);
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
+  // Infinite scroll for "No Bill": when the small loader at the bottom of
+  // the list scrolls into view, fetch the next page.
+  useEffect(() => {
+    if (activePreset !== "No Bill" || !noBillHasMore || loading || loadingMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadNoBill(noBillPage + 1, searchQuery);
+      },
+      { rootMargin: "120px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePreset, noBillHasMore, loading, loadingMore, noBillPage, searchQuery]);
+
   const handlePresetRecent = () => {
     setActivePreset("Recent");
     setShowCustomRange(false);
     setDateRange({ from: "", to: "" });
-    loadStats({ search: searchQuery });
+    loadStats({ search: searchQuery, limit: RECENT_ENTRIES_LIMIT });
   };
 
   const handlePresetToday = () => {
@@ -84,6 +174,15 @@ export default function Dashboard() {
     setShowCustomRange(false);
     setDateRange({ from, to });
     loadStats({ from, to, search: searchQuery });
+  };
+
+  const handlePresetNoBill = () => {
+    setActivePreset("No Bill");
+    setShowCustomRange(false);
+    setNoBillServices([]);
+    setNoBillPage(1);
+    setNoBillHasMore(false);
+    loadNoBill(1, searchQuery);
   };
 
   const handleToggleCustomRange = () => {
@@ -205,7 +304,11 @@ export default function Dashboard() {
     ? user.name.trim().split(/\s+/).slice(0, 2).map((n) => n[0]).join("").toUpperCase()
     : "";
 
-  const displayedRecentServices = (stats?.recentServices || [])
+  // In "No Bill" view the list comes from the separate paginated state;
+  // every other preset uses the dashboard stats exactly as before.
+  const listSource = activePreset === "No Bill" ? noBillServices : stats?.recentServices || [];
+
+  const displayedRecentServices = listSource
     .filter((s) => s.farmer)
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
@@ -293,10 +396,10 @@ export default function Dashboard() {
         >
           <button
             onClick={handlePresetRecent}
-            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+            className={`flex-1 min-w-0 font-bold whitespace-nowrap transition-all ${
               !isAdmin
-                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
-                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+                ? "px-1.5 py-3 rounded-2xl text-[12px] shadow-sm"
+                : "px-1 py-2 rounded-xl text-[10.5px] leading-tight"
             } ${
               activePreset === "Recent"
                 ? "bg-[#2B5439] text-white shadow-sm"
@@ -310,10 +413,10 @@ export default function Dashboard() {
 
           <button
             onClick={handlePresetToday}
-            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+            className={`flex-1 min-w-0 font-bold whitespace-nowrap transition-all ${
               !isAdmin
-                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
-                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+                ? "px-1.5 py-3 rounded-2xl text-[12px] shadow-sm"
+                : "px-1 py-2 rounded-xl text-[10.5px] leading-tight"
             } ${
               activePreset === "Today"
                 ? "bg-[#2B5439] text-white shadow-sm"
@@ -327,10 +430,10 @@ export default function Dashboard() {
 
           <button
             onClick={handlePresetWeek}
-            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+            className={`flex-1 min-w-0 font-bold whitespace-nowrap transition-all ${
               !isAdmin
-                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
-                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+                ? "px-1.5 py-3 rounded-2xl text-[12px] shadow-sm"
+                : "px-1 py-2 rounded-xl text-[10.5px] leading-tight"
             } ${
               activePreset === "Last Week"
                 ? "bg-[#2B5439] text-white shadow-sm"
@@ -344,10 +447,10 @@ export default function Dashboard() {
 
           <button
             onClick={handleToggleCustomRange}
-            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+            className={`flex-1 min-w-0 font-bold whitespace-nowrap transition-all ${
               !isAdmin
-                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
-                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+                ? "px-1.5 py-3 rounded-2xl text-[12px] shadow-sm"
+                : "px-1 py-2 rounded-xl text-[10.5px] leading-tight"
             } ${
               activePreset === "Custom"
                 ? "bg-[#2B5439] text-white shadow-sm"
@@ -357,6 +460,23 @@ export default function Dashboard() {
             }`}
           >
             Custom
+          </button>
+
+          <button
+            onClick={handlePresetNoBill}
+            className={`flex-1 min-w-0 font-bold whitespace-nowrap transition-all ${
+              !isAdmin
+                ? "px-1.5 py-3 rounded-2xl text-[12px] shadow-sm"
+                : "px-1 py-2 rounded-xl text-[10.5px] leading-tight"
+            } ${
+              activePreset === "No Bill"
+                ? "bg-[#2B5439] text-white shadow-sm"
+                : !isAdmin
+                ? "bg-white text-[#1F2A22]/70 border border-black/[0.08]"
+                : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
+            }`}
+          >
+            No Bill
           </button>
         </div>
 
@@ -445,12 +565,61 @@ export default function Dashboard() {
                       service.farmer && navigate(`/farmers/${service.farmer._id}`),
                   })}
                   className={`transition-colors rounded-xl ${
-                    isAdmin ? "cursor-pointer active:bg-black/[0.02]" : ""
-                  }`}
+                    hasBillNumber(service) ? "" : "relative"
+                  } ${isAdmin ? "cursor-pointer active:bg-black/[0.02]" : ""}`}
                 >
                   <RecentServiceItem service={service} disableNavigation={!isAdmin} />
+                  {/* No bill: red border + soft red fill over the whole card.
+                      Sits on top of the card but lets clicks pass through. */}
+                  {!hasBillNumber(service) && (
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 rounded-xl border border-[#C24949]/70 bg-[#C24949]/[0.08]"
+                    />
+                  )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* "No Bill" infinite scroll footer. While waiting it shows a soft
+              "Scroll to load more" hint; once the next page is loading it
+              shows shimmering placeholder cards with a small spinner. */}
+          {activePreset === "No Bill" && !loading && noBillHasMore && (
+            <div ref={sentinelRef} className="px-2 pb-3 pt-1">
+              {loadingMore ? (
+                <div className="space-y-2">
+                  {[0, 1].map((i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 rounded-xl bg-[#F6F2E9]/70 px-3.5 py-3 animate-pulse"
+                    >
+                      <div className="h-9 w-9 shrink-0 rounded-xl bg-[#1F2A22]/[0.07]" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-2.5 w-2/5 rounded-full bg-[#1F2A22]/[0.09]" />
+                        <div className="h-2 w-3/5 rounded-full bg-[#1F2A22]/[0.06]" />
+                      </div>
+                      <div className="h-3 w-12 rounded-full bg-[#1F2A22]/[0.09]" />
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-center gap-2 pt-1 text-[11px] font-semibold text-[#2B5439]/70">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 animate-spin" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3.5" />
+                      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Loading more...
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E9F3E9] border border-[#4C9A5A]/15 px-3 py-1.5 text-[11px] font-bold text-[#2B5439]">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Scroll to load more
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
