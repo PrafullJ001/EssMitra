@@ -447,16 +447,16 @@ export default function Dashboard() {
 
           <button
             onClick={handleToggleCustomRange}
-            className={`flex-1 min-w-0 font-bold whitespace-nowrap transition-all ${
+            className={`flex-1 min-w-0 font-bold whitespace-nowrap transition-all active:scale-95 ${
               !isAdmin
                 ? "px-1.5 py-3 rounded-2xl text-[12px] shadow-sm"
                 : "px-1 py-2 rounded-xl text-[10.5px] leading-tight"
             } ${
               activePreset === "Custom"
-                ? "bg-[#2B5439] text-white shadow-sm"
+                ? "bg-[#2B5439] text-white shadow-sm hover:bg-[#234730]"
                 : !isAdmin
-                ? "bg-white text-[#1F2A22]/70 border border-black/[0.08]"
-                : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
+                ? "bg-white text-[#1F2A22]/70 border border-black/[0.08] hover:bg-[#E9F3E9]"
+                : "bg-white text-[#1F2A22]/60 border border-black/[0.06] hover:bg-[#E9F3E9]"
             }`}
           >
             Custom
@@ -508,7 +508,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={handleApplyCustomRange}
-              className="w-full bg-[#4C9A5A] text-white rounded-xl py-2.5 text-sm font-bold"
+              className="w-full bg-[#4C9A5A] text-white rounded-xl py-2.5 text-sm font-bold shadow-sm transition-all duration-150 hover:bg-[#3F8A4D] hover:shadow-md active:bg-[#2B5439] active:scale-[0.98]"
             >
               Apply Range
             </button>

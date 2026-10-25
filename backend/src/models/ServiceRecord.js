@@ -2,6 +2,25 @@
 
 const serviceRecordSchema = new mongoose.Schema(
   {
+    // Copied from the Farmer document automatically when the service record is
+    // first saved (see the pre("save") hook below), so the farmer's name and
+    // mobile number are visible directly in this collection.
+    //
+    // These two fields are listed FIRST and carry an empty-string default so
+    // that MongoDB stores them at the very top of each service record
+    // (Mongoose writes defaulted fields before the rest). The pre("save") hook
+    // still fills in the real values exactly as before.
+    farmerName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    farmerMobile: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     farmer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Farmer",
@@ -103,6 +122,33 @@ serviceRecordSchema.methods.recalculate = function () {
 serviceRecordSchema.index({
   farmer: 1,
   serviceDate: -1,
+});
+
+// Fills farmerName / farmerMobile from the Farmer document when a service
+// record is first created (or if its farmer reference is ever changed). Normal
+// edits to bill, payment status, notes etc. skip this entirely. If the lookup
+// fails for any reason, the record still saves; the two fields are just left
+// empty. Mongoose 9 style: async function, no next() callback.
+serviceRecordSchema.pre("save", async function () {
+  if (!this.isNew && !this.isModified("farmer")) return;
+
+  try {
+    const farmerId = this.populated("farmer") || this.farmer;
+    if (!farmerId) return;
+
+    const farmer = await mongoose
+      .model("Farmer")
+      .findById(farmerId)
+      .select("fullName mobile")
+      .lean();
+
+    if (farmer) {
+      this.farmerName = farmer.fullName;
+      this.farmerMobile = farmer.mobile;
+    }
+  } catch (err) {
+    console.error("ServiceRecord: could not copy farmer name/mobile:", err.message);
+  }
 });
 
 module.exports = mongoose.model(
