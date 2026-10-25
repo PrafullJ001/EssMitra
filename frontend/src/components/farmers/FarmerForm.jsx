@@ -320,7 +320,12 @@ const { data } =
         {/* Mobile Numbers */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelClassName}>
+            <label
+              className={`${labelClassName.replace(
+                "block",
+                "flex"
+              )} items-end min-h-[2.25rem] sm:min-h-0`}
+            >
               Mobile / मोबाईल
             </label>
 
@@ -350,7 +355,12 @@ const { data } =
           </div>
 
           <div>
-            <label className={labelClassName}>
+            <label
+              className={`${labelClassName.replace(
+                "block",
+                "flex"
+              )} items-end min-h-[2.25rem] sm:min-h-0`}
+            >
               Alt Mobile / पर्यायी मोबाईल
             </label>
 
