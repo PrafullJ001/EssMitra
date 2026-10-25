@@ -3,6 +3,40 @@ const Farmer = require("../models/Farmer");
 const Payment = require("../models/Payment");
 const User = require("../models/User");
 
+const escapeRegex = (s) =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Looks for ANOTHER service with the same Bill No.
+// Ignores capital letters and spaces, so "A-001", "a-001" and "A - 001"
+// all count as the same bill number. `excludeId` skips the record that is
+// being edited, so a service never clashes with itself.
+const findDuplicateBill = async (billNo, excludeId) => {
+  const compact = String(billNo || "").replace(/\s+/g, "");
+
+  if (!compact) return null;
+
+  const pattern = compact
+    .split("")
+    .map(escapeRegex)
+    .join("\\s*");
+
+  const query = {
+    billNo: new RegExp(`^\\s*${pattern}\\s*$`, "i"),
+  };
+
+  if (excludeId) query._id = { $ne: excludeId };
+
+  return ServiceRecord.findOne(query).select("_id billNo");
+};
+
+// Clear English + Marathi message for a duplicate Bill No.
+// The form recognises `code: "DUPLICATE_BILL"` and shows its buttons.
+const duplicateBillResponse = (res, billNo) =>
+  res.status(409).json({
+    code: "DUPLICATE_BILL",
+    message: `Bill No. ${billNo} already exists. Please use a different bill number. / बिल क्रमांक ${billNo} आधीच अस्तित्वात आहे. कृपया वेगळा बिल क्रमांक वापरा.`,
+  });
+
 const addService = async (req, res, next) => {
   try {
     const {
@@ -21,6 +55,7 @@ const addService = async (req, res, next) => {
       notes,
       paymentMode,
       assignedStaffId, // admin-only override: which staff this service is credited to
+      allowDuplicateBill, // "true" when the user chose "Continue anyway" on the duplicate message
     } = req.body;
 
     // Farmer and Total Bill are compulsory. Bill No. is optional —
@@ -49,6 +84,23 @@ const addService = async (req, res, next) => {
       return res.status(404).json({
         message: "Farmer not found",
       });
+    }
+
+    // Duplicate Bill No. check. Skipped when no bill number was given, or
+    // when the user explicitly chose "Continue anyway" on the form.
+    if (
+      billNo &&
+      String(billNo).trim() &&
+      String(allowDuplicateBill) !== "true"
+    ) {
+      const duplicate = await findDuplicateBill(billNo);
+
+      if (duplicate) {
+        return duplicateBillResponse(
+          res,
+          String(billNo).trim()
+        );
+      }
     }
 
     // Default: whoever is actually logged in (staff or admin) gets credit,
@@ -207,6 +259,32 @@ const updateService = async (
       return res.status(400).json({
         message: "Bill No. is required",
       });
+    }
+
+    // Duplicate Bill No. check — only when the Bill No. is actually being
+    // changed, so editing other details of an older record is never blocked.
+    if (req.body.billNo !== undefined) {
+      const newBill = String(req.body.billNo).trim();
+
+      const sameAsBefore =
+        newBill.replace(/\s+/g, "").toLowerCase() ===
+        String(service.billNo || "")
+          .replace(/\s+/g, "")
+          .toLowerCase();
+
+      if (
+        !sameAsBefore &&
+        String(req.body.allowDuplicateBill) !== "true"
+      ) {
+        const duplicate = await findDuplicateBill(
+          newBill,
+          service._id
+        );
+
+        if (duplicate) {
+          return duplicateBillResponse(res, newBill);
+        }
+      }
     }
 
     const editableFields = [

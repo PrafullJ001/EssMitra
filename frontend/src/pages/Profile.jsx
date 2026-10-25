@@ -594,7 +594,7 @@ export default function Profile() {
             />
           </svg>
 
-          Sign Out
+          Logout
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import FarmerSearchSelect from "../components/farmers/FarmerSearchSelect";
 import FarmerForm from "../components/farmers/FarmerForm";
@@ -150,6 +150,54 @@ export default function AddService() {
 
   const [billNo, setBillNo] =
     useState("");
+
+  // Bill-number series prefix (e.g. "A-"). Admin sets it once; everyone then
+  // types only the digits (001) and the saved bill no becomes "A-001".
+  // Remembered on this device too, in case the server doesn't return it.
+  const [billPrefix, setBillPrefix] =
+    useState(() => {
+      try {
+        return localStorage.getItem("billPrefix") || "";
+      } catch {
+        return "";
+      }
+    });
+
+  const [
+    editingBillPrefix,
+    setEditingBillPrefix,
+  ] = useState(false);
+
+  // Shown when the server says this bill number is already used.
+  // The service is NOT saved in that case.
+  const [
+    duplicateBillMsg,
+    setDuplicateBillMsg,
+  ] = useState("");
+
+  const billInputRef = useRef(null);
+
+  // Set to true only when the user clicks "Continue anyway" on the
+  // duplicate-bill message; tells the server to skip its duplicate check.
+  const allowDuplicateRef = useRef(false);
+
+  const duplicateBoxRef = useRef(null);
+
+  // When the duplicate message appears, bring it into view so the user
+  // always sees it right after clicking Add Service.
+  useEffect(() => {
+    if (duplicateBillMsg && duplicateBoxRef.current) {
+      duplicateBoxRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [duplicateBillMsg]);
+
+  const [
+    newBillPrefix,
+    setNewBillPrefix,
+  ] = useState("");
 
   const [plotName, setPlotName] =
     useState("");
@@ -305,11 +353,21 @@ export default function AddService() {
 
   useEffect(() => {
     getSettings()
-      .then(({ data }) =>
+      .then(({ data }) => {
         setRatePerAcre(
           data.ratePerAcre
-        )
-      )
+        );
+
+        // Use the shared bill series from the server when it is provided
+        if (typeof data.billPrefix === "string") {
+          setBillPrefix(data.billPrefix);
+          try {
+            localStorage.setItem("billPrefix", data.billPrefix);
+          } catch {
+            /* ignore */
+          }
+        }
+      })
       .catch(() =>
         setRatePerAcre(0)
       );
@@ -525,6 +583,43 @@ export default function AddService() {
     };
 
   // ---------------------------------------
+  // SAVE BILL SERIES (admin only)
+  // ---------------------------------------
+
+  const handleSaveBillPrefix =
+    async () => {
+      const prefix = newBillPrefix.trim();
+
+      setBillPrefix(prefix);
+
+      try {
+        localStorage.setItem("billPrefix", prefix);
+      } catch {
+        /* ignore */
+      }
+
+      setEditingBillPrefix(false);
+
+      setNewBillPrefix("");
+
+      try {
+        await updateSettings({
+          ...(Number(ratePerAcre) > 0
+            ? {
+                ratePerAcre:
+                  Number(ratePerAcre),
+              }
+            : {}),
+          billPrefix: prefix,
+        });
+      } catch (err) {
+        setError(
+          "Bill series saved on this device only — could not save it on the server"
+        );
+      }
+    };
+
+  // ---------------------------------------
   // NEW FARMER
   // ---------------------------------------
 
@@ -544,6 +639,13 @@ export default function AddService() {
       e.preventDefault();
 
       setError(null);
+
+      setDuplicateBillMsg("");
+
+      const allowDuplicate =
+        allowDuplicateRef.current;
+
+      allowDuplicateRef.current = false;
 
       if (!farmer) {
         return setError(
@@ -672,10 +774,31 @@ export default function AddService() {
           village
         );
 
+        // Typed digits get the series prefix in front (001 -> A-001),
+        // unless the user already typed the prefix themselves.
+        const typedBillNo = billNo.trim();
+
+        const finalBillNo =
+          billPrefix &&
+          !typedBillNo
+            .toLowerCase()
+            .startsWith(
+              billPrefix.toLowerCase()
+            )
+            ? `${billPrefix}${typedBillNo}`
+            : typedBillNo;
+
         fd.append(
           "billNo",
-          hasBillNo ? billNo.trim() : ""
+          hasBillNo ? finalBillNo : ""
         );
+
+        if (allowDuplicate) {
+          fd.append(
+            "allowDuplicateBill",
+            "true"
+          );
+        }
 
         fd.append(
           "cropName",
@@ -809,12 +932,37 @@ export default function AddService() {
           newService
         );
       } catch (err) {
-        setError(
-          err.response
-            ?.data
-            ?.message ||
-            "Failed to add service"
-        );
+        const serverMsg =
+          err.response?.data?.message ||
+          "";
+
+        // Duplicate bill number: show the message with buttons
+        // instead of the plain error line. Nothing was saved.
+        const isDuplicateBill =
+          err.response?.data?.code ===
+            "DUPLICATE_BILL" ||
+          (/bill/i.test(serverMsg) &&
+            /(already|duplicate|exists)/i.test(
+              serverMsg
+            ));
+
+        if (isDuplicateBill) {
+          // Keep just the bill number for the short on-screen message
+          const clash =
+            (serverMsg.match(
+              /Bill No\.\s*(.+?)\s+already exists/i
+            ) || [])[1] ||
+            `${billPrefix}${billNo.trim()}`;
+
+          setDuplicateBillMsg(clash || "—");
+        } else {
+          setError(
+            err.response
+              ?.data
+              ?.message ||
+              "Failed to add service"
+          );
+        }
       } finally {
         setLoading(false);
       }
@@ -1244,24 +1392,131 @@ export default function AddService() {
 
                   {hasBillNo ? (
                     <div className="mt-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
+                          Bill Series / बिल मालिका
+                        </span>
+
+                        {isAdmin &&
+                          !editingBillPrefix && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingBillPrefix(
+                                  true
+                                );
+
+                                setNewBillPrefix(
+                                  billPrefix
+                                );
+                              }}
+                              className="text-[11px] font-bold text-[#4C9A5A] bg-[#E9F3E9] px-2.5 py-1 rounded-lg"
+                            >
+                              Edit series
+                            </button>
+                          )}
+                      </div>
+
+                      {!editingBillPrefix ? (
+                        <p className="text-lg font-bold text-[#1F2A22] mb-3">
+                          {billPrefix || (
+                            <span className="text-sm font-medium text-[#8A968C]">
+                              No series set
+                            </span>
+                          )}
+                        </p>
+                      ) : (
+                        <div className="flex gap-2 mb-3">
+                          <input
+                            type="text"
+                            value={
+                              newBillPrefix
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              setNewBillPrefix(
+                                e.target
+                                  .value
+                              )
+                            }
+                            maxLength={12}
+                            placeholder="e.g. A-"
+                            className="flex-1 min-w-0 bg-white border rounded-xl px-3.5 py-2 text-sm"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={
+                              handleSaveBillPrefix
+                            }
+                            className="shrink-0 bg-[#2B5439] text-white rounded-xl px-3.5 text-sm font-semibold"
+                          >
+                            Save
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditingBillPrefix(
+                                false
+                              )
+                            }
+                            className="shrink-0 bg-white border rounded-xl px-3.5 text-sm font-semibold"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+
                       <Field label="Bill No. / बिल क्रमांक">
-                        <input
-                          type="text"
-                          value={
-                            billNo
-                          }
-                          onChange={(
-                            e
-                          ) =>
-                            setBillNo(
-                              e.target
-                                .value
-                            )
-                          }
-                          placeholder="Enter bill number"
-                          required
-                          className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
-                        />
+                        <div className="flex items-stretch w-full bg-white border border-black/[0.06] rounded-xl overflow-hidden">
+                          {billPrefix && (
+                            <span className="flex items-center bg-[#E9F3E9] text-[#2B5439] text-sm font-bold px-3 shrink-0">
+                              {billPrefix}
+                            </span>
+                          )}
+
+                          <input
+                            type="text"
+                            value={
+                              billNo
+                            }
+                            ref={billInputRef}
+                            onChange={(
+                              e
+                            ) => {
+                              setBillNo(
+                                e.target
+                                  .value
+                              );
+
+                              setDuplicateBillMsg(
+                                ""
+                              );
+                            }}
+                            placeholder="Enter bill number"
+                            required
+                            className="flex-1 min-w-0 bg-transparent px-3.5 py-2.5 text-sm focus:outline-none"
+                          />
+                        </div>
+
+                        {billPrefix &&
+                          billNo.trim() && (
+                            <p className="text-[11px] text-[#8A968C] mt-1.5">
+                              Will be saved as{" "}
+                              <span className="font-bold text-[#2B5439]">
+                                {billNo
+                                  .trim()
+                                  .toLowerCase()
+                                  .startsWith(
+                                    billPrefix.toLowerCase()
+                                  )
+                                  ? billNo.trim()
+                                  : `${billPrefix}${billNo.trim()}`}
+                              </span>
+                            </p>
+                          )}
                       </Field>
                     </div>
                   ) : (
@@ -1330,7 +1585,7 @@ export default function AddService() {
                               .value
                           )
                         }
-                        className="flex-1 bg-white border rounded-xl px-3.5 py-2 text-sm"
+                        className="flex-1 min-w-0 bg-white border rounded-xl px-3.5 py-2 text-sm"
                       />
 
                       <button
@@ -1338,7 +1593,7 @@ export default function AddService() {
                         onClick={
                           handleSaveRate
                         }
-                        className="bg-[#2B5439] text-white rounded-xl px-4 text-sm font-semibold"
+                        className="shrink-0 bg-[#2B5439] text-white rounded-xl px-3.5 text-sm font-semibold"
                       >
                         Save
                       </button>
@@ -1350,7 +1605,7 @@ export default function AddService() {
                             false
                           )
                         }
-                        className="bg-white border rounded-xl px-4 text-sm font-semibold"
+                        className="shrink-0 bg-white border rounded-xl px-3.5 text-sm font-semibold"
                       >
                         Cancel
                       </button>
@@ -1757,6 +2012,69 @@ export default function AddService() {
                   />
                 </Field>
               </div>
+
+              {duplicateBillMsg && (
+                <div
+                  ref={duplicateBoxRef}
+                  className="bg-[#FCEDED] border border-[#C24949]/40 ring-2 ring-[#C24949]/10 rounded-xl px-3 py-2.5 space-y-2"
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-[#C24949] text-xs font-bold leading-snug">
+                      ⚠ Bill No. {duplicateBillMsg} already exists. Not saved yet.
+                    </p>
+
+                    <p className="text-[#C24949]/80 text-[11px] font-medium leading-snug">
+                      बिल क्रमांक {duplicateBillMsg} आधीच वापरलेला आहे. अजून जतन झाले नाही.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDuplicateBillMsg("");
+
+                        const el =
+                          billInputRef.current;
+
+                        if (el) {
+                          el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+
+                          el.focus();
+                          el.select();
+                        }
+                      }}
+                      className="flex-1 min-w-0 bg-[#C24949] text-white rounded-lg py-2 text-[11px] leading-tight font-bold active:scale-[0.98] transition-all"
+                    >
+                      Change Bill No.
+                      <br />
+                      बिल क्रमांक बदला
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => {
+                        allowDuplicateRef.current = true;
+
+                        setDuplicateBillMsg("");
+
+                        handleSubmit({
+                          preventDefault: () => {},
+                        });
+                      }}
+                      className="flex-1 min-w-0 bg-white border border-[#C24949]/40 text-[#C24949] rounded-lg py-2 text-[11px] leading-tight font-semibold active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                      Continue anyway
+                      <br />
+                      तरीही पुढे जा
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-[#FCEDED] border border-[#F3C6C6] rounded-2xl px-4 py-3">

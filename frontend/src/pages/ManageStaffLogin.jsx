@@ -265,7 +265,7 @@ export default function ManageStaffLogin() {
                     disabled={!isTrusted}
                     className="shrink-0 text-xs font-bold text-[#C24949] bg-[#FCEDED] border border-[#F3C6C6] rounded-xl px-3.5 py-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3C6C6]/40 transition-all active:scale-95"
                   >
-                    Sign Out
+                    Logout
                   </button>
                 )}
               </div>
