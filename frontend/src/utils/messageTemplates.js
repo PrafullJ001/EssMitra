@@ -8,6 +8,24 @@ const statusLine = (paid, pending) => {
   return "भरणा बाकी आहे";
 };
 
+// NEW: builds a short id like "ramesh-k3x9pq" (first name + random string).
+// Use this instead of the full app URL when sharing a link.
+export const generateShortLinkId = (farmer, randomLength = 6) => {
+  const firstName =
+    String(farmer?.fullName || "")
+      .trim()
+      .split(/\s+/)[0]
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]/gu, "") || "farmer";
+
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = new Uint8Array(randomLength);
+  (globalThis.crypto || window.crypto).getRandomValues(bytes);
+  const random = Array.from(bytes, (b) => chars[b % chars.length]).join("");
+
+  return `${firstName}-${random}`;
+};
+
 // Common footer — appended to every outgoing message so the farmer always
 // has the business name, contact number, and PhonePe number to reach us.
 const businessFooter = () => `${BUSINESS_NAME}${
@@ -58,7 +76,9 @@ ${discountAmount > 0 ? `सवलत: ${formatCurrency(discountAmount)}\n` : ""}
 ${businessFooter()}`;
 };
 
-export const buildReminderMessage = (farmer, totals) => {
+// shortLink is optional. Pass the output of generateShortLinkId(farmer)
+// (or your own short link). If not passed, the message is exactly as before.
+export const buildReminderMessage = (farmer, totals, shortLink) => {
   const { totalBill, totalCollected, totalPending } = totals;
 
   return `नमस्कार! प्रिय शेतकरी, ${farmer.fullName} 🙏
@@ -70,7 +90,7 @@ export const buildReminderMessage = (farmer, totals) => {
 शिल्लक रक्कम: ${formatCurrency(totalPending)}
 
 ${totalPending > 0 ? "कृपया लवकरात लवकर शिल्लक रक्कम भरावी." : "आपले खाते पूर्णपणे भरले आहे ✅"}
-
+${shortLink ? `\nतपशील: ${shortLink}\n` : ""}
 धन्यवाद!
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 
