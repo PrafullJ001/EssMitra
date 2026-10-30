@@ -59,6 +59,149 @@ const formatCurrency = (amount) => `₹${Number(amount || 0).toLocaleString("en-
 // Use "Rs." inside PDFs only; on-screen formatCurrency (₹) is untouched.
 const formatCurrencyForPdf = (amount) => `Rs. ${Number(amount || 0).toLocaleString("en-IN")}`;
 
+// ── PDF: Marathi / Hindi (Devanagari) note support ───────────────────
+// jsPDF's built-in font has no Devanagari glyphs, so a Marathi note comes
+// out as unreadable characters like "4[67-[9[6[". For notes that contain
+// such text, the note is drawn by the browser (which shapes Marathi
+// correctly) onto a small canvas and placed in the table cell as an image.
+// Tables whose notes are all plain English are left exactly as they were.
+const PDF_UNICODE_FONT =
+  '"Noto Sans Devanagari","Nirmala UI","Mangal","Devanagari Sangam MN","Lohit Devanagari","Arial Unicode MS",sans-serif';
+
+// true when the text has characters outside what jsPDF's default font
+// can print (plain letters/digits/common punctuation are fine).
+const needsUnicodeRendering = (text) =>
+  /[^\u0000-ÿ‐-‧]/.test(String(text || ""));
+
+const splitIntoCharacters = (word) =>
+  typeof Intl !== "undefined" && Intl.Segmenter
+    ? Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(word), (s) => s.segment)
+    : Array.from(word);
+
+const wrapCanvasText = (ctx, text, maxWidthPx) => {
+  const lines = [];
+  String(text)
+    .split(/\r?\n/)
+    .forEach((paragraph) => {
+      let line = "";
+      paragraph
+        .split(/\s+/)
+        .filter(Boolean)
+        .forEach((word) => {
+          const attempt = line ? `${line} ${word}` : word;
+          if (ctx.measureText(attempt).width <= maxWidthPx) {
+            line = attempt;
+            return;
+          }
+          if (line) lines.push(line);
+          line = "";
+          if (ctx.measureText(word).width <= maxWidthPx) {
+            line = word;
+            return;
+          }
+          // a single word wider than the cell — break it by character
+          let chunk = "";
+          splitIntoCharacters(word).forEach((ch) => {
+            if (chunk && ctx.measureText(chunk + ch).width > maxWidthPx) {
+              lines.push(chunk);
+              chunk = "";
+            }
+            chunk += ch;
+          });
+          line = chunk;
+        });
+      lines.push(line);
+    });
+  return lines;
+};
+
+// Draws `text` onto a canvas the width of the cell and returns it as a PNG
+// plus its size in PDF millimetres.
+const renderTextToImage = (text, widthMm, fontSizePt, color) => {
+  const SCALE = 4; // 4x resolution keeps the printed text sharp
+  const PX_PER_MM = 3.7795 * SCALE;
+  const fontPx = fontSizePt * (4 / 3) * SCALE;
+  const lineHeightPx = fontPx * 1.35;
+  const widthPx = Math.max(1, Math.floor(widthMm * PX_PER_MM));
+  const fontCss = `${fontPx}px ${PDF_UNICODE_FONT}`;
+
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  measureCtx.font = fontCss;
+  const lines = wrapCanvasText(measureCtx, text, widthPx);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = widthPx;
+  canvas.height = Math.max(1, Math.ceil(lines.length * lineHeightPx));
+  const ctx = canvas.getContext("2d");
+  ctx.font = fontCss;
+  ctx.fillStyle = color;
+  ctx.textBaseline = "top";
+  lines.forEach((l, i) => ctx.fillText(l, 0, i * lineHeightPx + fontPx * 0.1));
+
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    widthMm: widthPx / PX_PER_MM,
+    heightMm: canvas.height / PX_PER_MM,
+  };
+};
+
+// Extra autoTable options that make the Note column print Marathi text
+// correctly. `otherWidths` fixes the widths (mm) of the other columns so
+// the note column's width is known. Returns {} (no change at all) when no
+// note in the table needs it.
+const getUnicodeNoteOptions = (doc, noteCol, notes, otherWidths) => {
+  if (!notes.some(needsUnicodeRendering)) return {};
+
+  const PAGE_MARGIN = 14; // autoTable's default left/right margin
+  const available = doc.internal.pageSize.getWidth() - PAGE_MARGIN * 2;
+  const noteWidth =
+    available - Object.values(otherWidths).reduce((a, b) => a + b, 0);
+
+  const columnStyles = { [noteCol]: { cellWidth: noteWidth } };
+  Object.entries(otherWidths).forEach(([i, w]) => {
+    columnStyles[i] = { cellWidth: w };
+  });
+
+  const images = new Map();
+
+  return {
+    columnStyles,
+    didParseCell: (data) => {
+      if (data.section !== "body" || data.column.index !== noteCol) return;
+      const text = String(data.cell.raw ?? "");
+      if (!needsUnicodeRendering(text)) return;
+
+      const padX = data.cell.padding("left") + data.cell.padding("right");
+      const padY = data.cell.padding("top") + data.cell.padding("bottom");
+      // match the table's own text colour (autoTable gives a grey level or an RGB array)
+      const tc = data.cell.styles.textColor;
+      const color = Array.isArray(tc)
+        ? `rgb(${tc[0]},${tc[1]},${tc[2]})`
+        : `rgb(${Number(tc) || 20},${Number(tc) || 20},${Number(tc) || 20})`;
+      const img = renderTextToImage(text, noteWidth - padX, data.cell.styles.fontSize, color);
+
+      images.set(text, img);
+      data.cell.text = []; // don't print the unreadable version
+      data.cell.styles.minCellHeight = img.heightMm + padY;
+    },
+    didDrawCell: (data) => {
+      if (data.section !== "body" || data.column.index !== noteCol) return;
+      const img = images.get(String(data.cell.raw ?? ""));
+      if (!img) return;
+      doc.addImage(
+        img.dataUrl,
+        "PNG",
+        data.cell.x + data.cell.padding("left"),
+        data.cell.y + data.cell.padding("top"),
+        img.widthMm,
+        img.heightMm,
+        undefined,
+        "FAST" // compress the image so the PDF stays small
+      );
+    },
+  };
+};
+
 export default function Expenses() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -817,6 +960,7 @@ const requestDelete = (exp) => {
       ]],
       headStyles: { fillColor: [31, 61, 43] },
       footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
+      ...getUnicodeNoteOptions(doc, 1, sortedEntries.map((e) => e.note || ""), { 0: 28, 2: 34 }),
     });
 
     // Filename: staff name + optional date-range suffix. When no date
@@ -893,6 +1037,7 @@ const requestDelete = (exp) => {
       ]],
       headStyles: { fillColor: [31, 61, 43] },
       footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
+      ...getUnicodeNoteOptions(doc, 1, sortedEntries.map((e) => e.note || ""), { 0: 28, 2: 34 }),
     });
 
     // Table 2 — Settlements, printed right below the expenses table (same
@@ -920,6 +1065,7 @@ const requestDelete = (exp) => {
       ]],
       headStyles: { fillColor: [31, 61, 43] },
       footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
+      ...getUnicodeNoteOptions(doc, 1, sortedSettlements.map((e) => e.note || ""), { 0: 28, 2: 34 }),
     });
 
     // Summary — Given / Settled / Balance together, calculated the same
@@ -1015,6 +1161,7 @@ const requestDelete = (exp) => {
       ]],
       headStyles: { fillColor: [31, 61, 43] },
       footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
+      ...getUnicodeNoteOptions(doc, 2, sortedEntries.map((e) => e.note || ""), { 0: 28, 1: 32, 3: 34 }),
     });
 
     // Filename: this is the ONLY report that keeps the generic "_all"
