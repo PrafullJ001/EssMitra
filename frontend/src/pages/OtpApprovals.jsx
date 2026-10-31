@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
+import Spinner from "../components/common/Spinner";
 
 export default function OtpApprovals() {
   const navigate = useNavigate();
@@ -103,13 +104,7 @@ export default function OtpApprovals() {
 
       {/* Content */}
       <div className="px-5 -mt-8 relative z-10 max-w-md mx-auto">
-        {loading && (
-          <div className="bg-white rounded-3xl p-6 text-center shadow-sm">
-            <p className="text-sm text-[#5B6B5E]">
-              Loading OTP requests...
-            </p>
-          </div>
-        )}
+        {loading && <Spinner label="Loading..." />}
 
         {!loading && error && (
           <div className="bg-[#FCEDED] border border-[#F3C6C6] rounded-2xl p-4">
@@ -198,7 +193,7 @@ export default function OtpApprovals() {
         <button
           type="button"
           onClick={() => navigate("/profile")}
-          className="w-full mt-5 text-sm font-semibold text-[#4C9A5A]"
+          className="w-full mt-5 bg-white border border-[#4C9A5A]/30 text-[#4C9A5A] rounded-2xl py-3 text-sm font-bold shadow-sm hover:bg-[#E9F3E9] active:scale-[0.98] transition-all"
         >
           ← Back to Profile
         </button>

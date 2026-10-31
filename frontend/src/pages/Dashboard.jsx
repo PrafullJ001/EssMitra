@@ -43,6 +43,51 @@ const hasBillNumber = (service) =>
     return value !== undefined && value !== null && String(value).trim() !== "";
   });
 
+// Short date for the "applied range" message, e.g. "12 Aug 2026".
+const formatShortDate = (value, fallback) =>
+  value
+    ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : fallback;
+
+// Circular loader with a "stretching arc": the arc grows fast, shrinks slow,
+// while the circle keeps turning. Used on the loading screen and inside the
+// Apply Range button.
+function ArcLoader({ size = 64, strokeWidth = 4, color = "#4C9A5A", track = "rgba(76,154,90,0.15)" }) {
+  return (
+    <>
+      <style>{`
+        @keyframes arc-rotate {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes arc-dash {
+          0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+          50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+          100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+        }
+      `}</style>
+      <svg
+        viewBox="0 0 48 48"
+        width={size}
+        height={size}
+        style={{ animation: "arc-rotate 1.6s linear infinite" }}
+        aria-hidden="true"
+      >
+        <circle cx="24" cy="24" r="20" fill="none" stroke={track} strokeWidth={strokeWidth} />
+        <circle
+          cx="24"
+          cy="24"
+          r="20"
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          style={{ animation: "arc-dash 1.4s ease-in-out infinite" }}
+        />
+      </svg>
+    </>
+  );
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -58,6 +103,11 @@ export default function Dashboard() {
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const isFirstSearchRender = useRef(true);
+
+  // Apply Range button: loader while the range is being applied, and the
+  // last applied From/To so a small "applied" message can be shown.
+  const [applyingCustom, setApplyingCustom] = useState(false);
+  const [customApplied, setCustomApplied] = useState(null);
 
   // "No Bill" list — kept separate from `stats` so the stat cards above
   // are never overwritten while this view is open.
@@ -193,10 +243,18 @@ export default function Dashboard() {
     });
   };
 
-  const handleApplyCustomRange = () => {
+  // Same calls as before; it now waits for the load to finish so the Apply
+  // button can show a loader, then remembers the applied From/To.
+  const handleApplyCustomRange = async () => {
+    setApplyingCustom(true);
     setActivePreset("Custom");
     setDateRange({ from: customFrom, to: customTo });
-    loadStats({ from: customFrom, to: customTo, search: searchQuery });
+    try {
+      await loadStats({ from: customFrom, to: customTo, search: searchQuery });
+      setCustomApplied({ from: customFrom, to: customTo });
+    } finally {
+      setApplyingCustom(false);
+    }
   };
 
   if (loading && !stats) {
@@ -239,13 +297,9 @@ export default function Dashboard() {
 
         {/* Card — white, matching every other card in the app */}
         <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center bg-white/90 backdrop-blur-sm border border-black/[0.05] rounded-[2rem] shadow-[0_20px_60px_rgba(43,84,57,0.08)] px-7 py-9">
-          {/* Loader — single clean circular spinner, no icon inside */}
+          {/* Loader — circular stretching-arc spinner (fast then slow) */}
           <div className="relative h-16 w-16 mb-6 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-4 border-[#4C9A5A]/15" />
-            <div
-              className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#4C9A5A]"
-              style={{ animation: "ring-spin 1.8s linear infinite" }}
-            />
+            <ArcLoader size={64} />
           </div>
 
           {/* Heading block */}
@@ -315,6 +369,16 @@ export default function Dashboard() {
   const formatCurrency = (amount) => {
     return Number(amount || 0).toLocaleString("en-IN");
   };
+
+  // Show the small "applied" message only while the Custom range that was
+  // applied is still the one in use.
+  const showCustomAppliedMsg =
+    !applyingCustom &&
+    activePreset === "Custom" &&
+    customApplied &&
+    (customApplied.from || customApplied.to) &&
+    dateRange.from === customApplied.from &&
+    dateRange.to === customApplied.to;
 
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-24 font-sans selection:bg-[#4C9A5A]/20">
@@ -508,10 +572,30 @@ export default function Dashboard() {
             </div>
             <button
               onClick={handleApplyCustomRange}
-              className="w-full bg-[#4C9A5A] text-white rounded-xl py-2.5 text-sm font-bold shadow-sm transition-all duration-150 hover:bg-[#3F8A4D] hover:shadow-md active:bg-[#2B5439] active:scale-[0.98]"
+              disabled={applyingCustom}
+              className="w-full flex items-center justify-center gap-2 bg-[#4C9A5A] text-white rounded-xl py-2.5 text-sm font-bold shadow-sm transition-all duration-150 hover:bg-[#3F8A4D] hover:shadow-md active:bg-[#2B5439] active:scale-[0.98] disabled:opacity-80 disabled:cursor-not-allowed"
             >
-              Apply Range
+              {applyingCustom ? (
+                <>
+                  <ArcLoader size={16} strokeWidth={5} color="#ffffff" track="rgba(255,255,255,0.3)" />
+                  Applying...
+                </>
+              ) : (
+                "Apply Range"
+              )}
             </button>
+
+            {/* Small highlighted message: which From / To range is applied */}
+            {showCustomAppliedMsg && (
+              <div className="flex items-center justify-center gap-1.5 rounded-lg bg-[#E9F3E9] border border-[#4C9A5A]/20 px-2.5 py-1.5 text-[11px] font-bold text-[#2B5439]">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>
+                  Applied: {formatShortDate(customApplied.from, "Start")} → {formatShortDate(customApplied.to, "Today")}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

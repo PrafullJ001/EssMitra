@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStaffPerformance, getStaffPerformanceForUser } from "../api/staffApi";
+import Spinner from "../components/common/Spinner";
 
 // Truncates (not rounds) to exactly 2 decimal places — e.g. 44.55667 → "44.55"
 const truncateTo2 = (value) => {
@@ -118,7 +119,7 @@ export default function StaffPerformance() {
         className="relative px-6 pt-10 pb-16 overflow-hidden rounded-b-[2.5rem] shadow-sm"
         style={{ backgroundImage: "linear-gradient(180deg, #1F3D2B 0%, #234730 60%, #2B5439 100%)" }}
       >
-        <button onClick={() => navigate("/profile")} className="text-white/80 text-sm mb-3">
+        <button onClick={() => navigate("/profile")} className="inline-flex items-center bg-white/10 border border-white/15 text-white text-sm font-semibold px-3.5 py-1.5 rounded-xl mb-3 hover:bg-white/20 active:scale-95 transition-all">
           ← Back
         </button>
         <h1 className="text-xl font-bold text-white tracking-tight">Staff Performance</h1>
@@ -193,7 +194,7 @@ export default function StaffPerformance() {
           )}
         </div>
 
-        {loading && <p className="text-center text-[#5B6B5E] text-sm py-6">Loading...</p>}
+        {loading && <Spinner label="Loading..." />}
         {error && <p className="text-center text-[#C24949] text-sm py-6">{error}</p>}
 
         {!loading && !error && data.length === 0 && (
