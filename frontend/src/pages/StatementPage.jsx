@@ -585,36 +585,6 @@ export default function StatementPage() {
             </div>
           </div>
         </div>
-
-        {/* Footer credit — signature style */}
-        <div className="mt-6 flex justify-center">
-          
-           <a href="https://prafulljadhav.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group text-center py-2"
-          >
-            <p className="text-[9px] uppercase tracking-[0.18em] text-[#1F2A22]/40 font-bold mb-1.5">
-              Crafted &amp; Developed by
-            </p>
-            <span className="inline-flex items-center gap-1.5 text-[15px] font-bold text-[#1F3D2B] group-hover:text-[#4C9A5A] transition-colors border-b-2 border-[#4C9A5A]/70 group-hover:border-[#4C9A5A] pb-0.5">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-3.5 w-3.5 text-[#4C9A5A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
-                fill="none"
-              >
-                <path
-                  d="M7 17L17 7M17 7H9M17 7v8"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Prafull Jadhav
-            </span>
-          </a>
-        </div>
       </div>
 
       {isQrZoomed && (
