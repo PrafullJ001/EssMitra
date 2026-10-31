@@ -92,6 +92,14 @@ export default function StatementPage() {
           @keyframes ring-spin {
             to { transform: rotate(360deg); }
           }
+          @keyframes arc-rotate {
+            to { transform: rotate(360deg); }
+          }
+          @keyframes arc-dash {
+            0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+            50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+            100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+          }
           @keyframes dot-bounce {
             0%, 80%, 100% { transform: translateY(0) scale(0.8); opacity: 0.5; }
             40% { transform: translateY(-6px) scale(1); opacity: 1; }
@@ -100,13 +108,27 @@ export default function StatementPage() {
 
         {/* Card — white, matching every other card in the app */}
         <div className="relative z-10 max-w-sm w-full flex flex-col items-center text-center bg-white/90 backdrop-blur-sm border border-black/[0.05] rounded-[2rem] shadow-[0_20px_60px_rgba(43,84,57,0.08)] px-7 py-9">
-          {/* Loader — single clean circular spinner, no icon inside */}
-          <div className="relative h-16 w-16 mb-6 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-4 border-[#4C9A5A]/15" />
-            <div
-              className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#4C9A5A]"
-              style={{ animation: "ring-spin 1.8s linear infinite" }}
-            />
+          {/* Loader — same stretching-arc circular spinner as the OTP Approvals
+              / shared Spinner (same circle size as before) */}
+          <div className="relative h-16 w-16 mb-6">
+            <svg
+              viewBox="0 0 48 48"
+              className="absolute inset-0 h-full w-full"
+              style={{ animation: "arc-rotate 1.6s linear infinite" }}
+              aria-hidden="true"
+            >
+              <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(76,154,90,0.15)" strokeWidth="4" />
+              <circle
+                cx="24"
+                cy="24"
+                r="20"
+                fill="none"
+                stroke="#4C9A5A"
+                strokeWidth="4"
+                strokeLinecap="round"
+                style={{ animation: "arc-dash 1.4s ease-in-out infinite" }}
+              />
+            </svg>
           </div>
 
           {/* Heading block */}
