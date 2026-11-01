@@ -250,16 +250,9 @@ const updateService = async (
       });
     }
 
-    // If Bill No. is sent while editing,
-    // it cannot be empty.
-    if (
-      req.body.billNo !== undefined &&
-      !String(req.body.billNo).trim()
-    ) {
-      return res.status(400).json({
-        message: "Bill No. is required",
-      });
-    }
+    // An empty Bill No. is allowed while editing: the Edit form's
+    // "Bill No. available?" = No choice sends it empty on purpose. When the
+    // user picks Yes, the form itself makes the Bill No. required.
 
     // Duplicate Bill No. check — only when the Bill No. is actually being
     // changed, so editing other details of an older record is never blocked.

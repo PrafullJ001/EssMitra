@@ -5,6 +5,7 @@ import PaymentForm from "./PaymentForm";
 import ServiceEditForm from "./ServiceEditForm";
 import PaymentHistoryList from "./PaymentHistoryList";
 import { deleteService, updateService } from "../../api/serviceApi";
+import { getSettings, updateSettings } from "../../api/settingsApi";
 import { useAuth } from "../../hooks/useAuth";
 import EmptyState from "../common/EmptyState";
 import MathCaptchaModal from "../common/MathCaptchaModal";
@@ -32,6 +33,32 @@ export default function FarmerHistoryTable({
   const [billNoDraft, setBillNoDraft] = useState("");
   const [billNoError, setBillNoError] = useState(null);
   const [savingBillNo, setSavingBillNo] = useState(false);
+
+  // Bill-number series prefix (e.g. "A-") — same as Add Service. Admin sets
+  // it once; everyone then types only the digits (001) and the saved bill
+  // no becomes "A-001". Remembered on this device too, in case the server
+  // doesn't return it.
+  const [billPrefix, setBillPrefix] = useState(() => {
+    try {
+      return localStorage.getItem("billPrefix") || "";
+    } catch {
+      return "";
+    }
+  });
+  const [editingBillPrefix, setEditingBillPrefix] = useState(false);
+  const [newBillPrefix, setNewBillPrefix] = useState("");
+  // Current rate per acre from settings — sent along when the series is
+  // saved, exactly like Add Service does.
+  const [settingsRate, setSettingsRate] = useState(0);
+
+  // Shown when the server says this bill number is already used. The bill
+  // number is NOT saved in that case. { serviceId, bill }
+  const [duplicateBill, setDuplicateBill] = useState(null);
+  const billInputRef = useRef(null);
+  const duplicateBoxRef = useRef(null);
+  // Set to true only when the user clicks "Continue anyway" on the
+  // duplicate-bill message; tells the server to skip its duplicate check.
+  const allowDuplicateRef = useRef(false);
 
   // Date filter (From / To) — filters which service cards are shown
   // below, purely display-side. Nothing else (totals elsewhere on the
@@ -67,28 +94,105 @@ export default function FarmerHistoryTable({
     }
   }, [highlightedServiceId]);
 
+  // When the duplicate message appears, bring it into view so the user
+  // always sees it right after clicking Save.
+  useEffect(() => {
+    if (duplicateBill && duplicateBoxRef.current) {
+      duplicateBoxRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [duplicateBill]);
+
   const startAddBillNo = (service) => {
     setBillNoEditingId(service._id);
     setBillNoDraft("");
     setBillNoError(null);
+    setDuplicateBill(null);
+    setEditingBillPrefix(false);
+
+    // Use the shared bill series from the server when it is provided
+    getSettings()
+      .then(({ data }) => {
+        setSettingsRate(Number(data.ratePerAcre) || 0);
+        if (typeof data.billPrefix === "string") {
+          setBillPrefix(data.billPrefix);
+          try {
+            localStorage.setItem("billPrefix", data.billPrefix);
+          } catch {
+            /* ignore */
+          }
+        }
+      })
+      .catch(() => {});
   };
 
   const cancelAddBillNo = () => {
     setBillNoEditingId(null);
     setBillNoDraft("");
     setBillNoError(null);
+    setDuplicateBill(null);
+    setEditingBillPrefix(false);
+  };
+
+  // Save bill series (admin only) — same as Add Service
+  const handleSaveBillPrefix = async () => {
+    const prefix = newBillPrefix.trim();
+
+    setBillPrefix(prefix);
+
+    try {
+      localStorage.setItem("billPrefix", prefix);
+    } catch {
+      /* ignore */
+    }
+
+    setEditingBillPrefix(false);
+    setNewBillPrefix("");
+
+    try {
+      await updateSettings({
+        ...(Number(settingsRate) > 0
+          ? { ratePerAcre: Number(settingsRate) }
+          : {}),
+        billPrefix: prefix,
+      });
+    } catch (err) {
+      setBillNoError(
+        "Bill series saved on this device only — could not save it on the server"
+      );
+    }
   };
 
   const handleSaveBillNo = async (service) => {
+    const allowDuplicate = allowDuplicateRef.current;
+    allowDuplicateRef.current = false;
+
+    setDuplicateBill(null);
+
     if (!billNoDraft.trim()) {
       setBillNoError("Enter a bill number");
       return;
     }
     setBillNoError(null);
+
+    // Typed digits get the series prefix in front (001 -> A-001),
+    // unless the user already typed the prefix themselves.
+    const typedBillNo = billNoDraft.trim();
+    const finalBillNo =
+      billPrefix &&
+      !typedBillNo.toLowerCase().startsWith(billPrefix.toLowerCase())
+        ? `${billPrefix}${typedBillNo}`
+        : typedBillNo;
+
     setSavingBillNo(true);
     try {
       const fd = new FormData();
-      fd.append("billNo", billNoDraft.trim());
+      fd.append("billNo", finalBillNo);
+      if (allowDuplicate) {
+        fd.append("allowDuplicateBill", "true");
+      }
       fd.append("cropName", service.cropName || "");
       fd.append("serviceType", service.serviceType || "");
       fd.append("kshetra", service.kshetra || "");
@@ -112,7 +216,24 @@ export default function FarmerHistoryTable({
         onServiceUpdated(res.data.service);
       }
     } catch (err) {
-      setBillNoError(err.response?.data?.message || "Failed to save bill number");
+      const serverMsg = err.response?.data?.message || "";
+
+      // Duplicate bill number: show the message with buttons instead of
+      // the plain error line. Nothing was saved.
+      const isDuplicateBill =
+        err.response?.data?.code === "DUPLICATE_BILL" ||
+        /Bill No\.\s*.+?\s+already exists/i.test(serverMsg);
+
+      if (isDuplicateBill) {
+        // Keep just the bill number for the short on-screen message
+        const clash =
+          (serverMsg.match(/Bill No\.\s*(.+?)\s+already exists/i) || [])[1] ||
+          finalBillNo;
+
+        setDuplicateBill({ serviceId: service._id, bill: clash || "—" });
+      } else {
+        setBillNoError(serverMsg || "Failed to save bill number");
+      }
       setSavingBillNo(false);
     }
   };
@@ -503,41 +624,123 @@ export default function FarmerHistoryTable({
                     Bill: {s.billNo}
                   </span>
                 ) : billNoEditingId === s._id ? (
-                  <span className="flex items-center gap-1.5 bg-[#FCEDED] border border-[#F3C6C6] px-2 py-1.5 rounded-md">
-                    <input
-                      type="text"
-                      autoFocus
-                      value={billNoDraft}
-                      onChange={(e) => setBillNoDraft(e.target.value)}
-                      placeholder="Bill no."
-                      className="w-24 bg-white border border-black/[0.08] rounded-lg px-2 py-1 text-[12px] font-medium text-[#1F2A22] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/20"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleSaveBillNo(s)}
-                      disabled={savingBillNo}
-                      className="flex items-center gap-1 text-[11px] font-bold text-white bg-[#4C9A5A] rounded-lg px-2 py-1 disabled:opacity-70"
-                    >
-                      {savingBillNo ? (
-                        <>
-                          <svg viewBox="0 0 24 24" className="h-3 w-3 animate-spin" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                          </svg>
-                          Saving
-                        </>
-                      ) : (
-                        "Save"
+                  <span className="flex flex-col gap-2 w-full bg-[#FCEDED] border border-[#F3C6C6] px-2.5 py-2 rounded-md">
+                    {/* Bill series — same as Add Service */}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide">
+                        Bill Series / बिल श्रेणी
+                      </span>
+
+                      {isAdmin && !editingBillPrefix && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingBillPrefix(true);
+                            setNewBillPrefix(billPrefix);
+                          }}
+                          className="text-[11px] font-bold text-[#4C9A5A] bg-[#E9F3E9] px-2 py-0.5 rounded-md"
+                        >
+                          Edit series
+                        </button>
                       )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelAddBillNo}
-                      disabled={savingBillNo}
-                      className="text-[11px] font-bold text-[#1F2A22]/50"
-                    >
-                      Cancel
-                    </button>
+                    </span>
+
+                    {!editingBillPrefix ? (
+                      <span className="text-[14px] font-bold text-[#1F2A22]">
+                        {billPrefix || (
+                          <span className="text-[12px] font-medium text-[#8A968C]">
+                            No series set
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={newBillPrefix}
+                          onChange={(e) => setNewBillPrefix(e.target.value)}
+                          maxLength={12}
+                          placeholder="e.g. A-"
+                          className="flex-1 min-w-0 bg-white border border-black/[0.08] rounded-lg px-2 py-1 text-[12px] font-medium text-[#1F2A22] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSaveBillPrefix}
+                          className="shrink-0 text-[11px] font-bold text-white bg-[#2B5439] rounded-lg px-2.5 py-1"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingBillPrefix(false)}
+                          className="shrink-0 text-[11px] font-bold text-[#1F2A22]/50 bg-white border border-black/[0.08] rounded-lg px-2.5 py-1"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    )}
+
+                    {/* Bill no input with the series in front */}
+                    <span className="flex items-stretch bg-white border border-black/[0.08] rounded-lg overflow-hidden">
+                      {billPrefix && (
+                        <span className="flex items-center bg-[#E9F3E9] text-[#2B5439] text-[12px] font-bold px-2 shrink-0">
+                          {billPrefix}
+                        </span>
+                      )}
+                      <input
+                        type="text"
+                        autoFocus
+                        ref={billInputRef}
+                        value={billNoDraft}
+                        onChange={(e) => {
+                          setBillNoDraft(e.target.value);
+                          setDuplicateBill(null);
+                        }}
+                        placeholder="Bill no."
+                        className="flex-1 min-w-0 bg-transparent px-2 py-1.5 text-[12px] font-medium text-[#1F2A22] focus:outline-none"
+                      />
+                    </span>
+
+                    {billPrefix && billNoDraft.trim() && (
+                      <span className="text-[11px] text-[#8A968C]">
+                        Will be saved as{" "}
+                        <span className="font-bold text-[#2B5439]">
+                          {billNoDraft.trim().toLowerCase().startsWith(billPrefix.toLowerCase())
+                            ? billNoDraft.trim()
+                            : `${billPrefix}${billNoDraft.trim()}`}
+                        </span>
+                      </span>
+                    )}
+
+                    <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveBillNo(s)}
+                        disabled={savingBillNo}
+                        className="flex items-center gap-1 text-[11px] font-bold text-white bg-[#4C9A5A] rounded-lg px-2.5 py-1 disabled:opacity-70"
+                      >
+                        {savingBillNo ? (
+                          <>
+                            <svg viewBox="0 0 24 24" className="h-3 w-3 animate-spin" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Saving
+                          </>
+                        ) : (
+                          "Save"
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelAddBillNo}
+                        disabled={savingBillNo}
+                        className="text-[11px] font-bold text-[#1F2A22]/50"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+
                     {billNoError && (
                       <span className="text-[10px] font-semibold text-[#C24949]">{billNoError}</span>
                     )}
@@ -594,6 +797,68 @@ export default function FarmerHistoryTable({
                   </span>
                 )}
               </div>
+
+              {/* Duplicate bill number — same message and buttons as Add Service.
+                  Nothing was saved when this shows. */}
+              {duplicateBill && duplicateBill.serviceId === s._id && (
+                <div
+                  ref={duplicateBoxRef}
+                  className="mt-3 bg-[#FCEDED] border border-[#C24949]/40 ring-2 ring-[#C24949]/10 rounded-xl px-3 py-2.5 space-y-2"
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-[#C24949] text-xs font-bold leading-snug">
+                      ⚠ Bill No. {duplicateBill.bill} already exists. Not saved yet.
+                    </p>
+
+                    <p className="text-[#C24949]/80 text-[11px] font-medium leading-snug">
+                      बिल क्रमांक {duplicateBill.bill} आधीच वापरलेला आहे. अजून जतन झाले नाही.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDuplicateBill(null);
+
+                        const el = billInputRef.current;
+
+                        if (el) {
+                          el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+
+                          el.focus();
+                          el.select();
+                        }
+                      }}
+                      className="flex-1 min-w-0 bg-[#C24949] text-white rounded-lg py-2 text-[11px] leading-tight font-bold active:scale-[0.98] transition-all"
+                    >
+                      Change Bill No.
+                      <br />
+                      बिल क्रमांक बदला
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={savingBillNo}
+                      onClick={() => {
+                        allowDuplicateRef.current = true;
+
+                        setDuplicateBill(null);
+
+                        handleSaveBillNo(s);
+                      }}
+                      className="flex-1 min-w-0 bg-white border border-[#C24949]/40 text-[#C24949] rounded-lg py-2 text-[11px] leading-tight font-semibold active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                      Continue anyway
+                      <br />
+                      तरीही पुढे जा
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Financial Section — hidden entirely from staff, admin-only */}

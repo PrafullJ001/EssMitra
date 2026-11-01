@@ -1394,7 +1394,7 @@ export default function AddService() {
                     <div className="mt-3">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
-                          Bill Series / बिल मालिका
+                          Bill Series / बिल श्रेणी
                         </span>
 
                         {isAdmin &&
