@@ -687,18 +687,20 @@ export default function FarmerHistoryTable({
                           {billPrefix}
                         </span>
                       )}
-                      <input
-                        type="text"
-                        autoFocus
-                        ref={billInputRef}
-                        value={billNoDraft}
-                        onChange={(e) => {
-                          setBillNoDraft(e.target.value);
-                          setDuplicateBill(null);
-                        }}
-                        placeholder="Bill no."
-                        className="flex-1 min-w-0 bg-transparent px-2 py-1.5 text-[12px] font-medium text-[#1F2A22] focus:outline-none"
-                      />
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  autoFocus
+  ref={billInputRef}
+  value={billNoDraft}
+  onChange={(e) => {
+    setBillNoDraft(e.target.value.replace(/\D/g, ""));   // digits only
+    setDuplicateBillMsg("");
+  }}
+  placeholder="Bill no."
+  className="w-20 bg-transparent px-2 py-1 text-[12px] font-medium text-[#1F2A22] focus:outline-none"
+/>
                     </span>
 
                     {billPrefix && billNoDraft.trim() && (

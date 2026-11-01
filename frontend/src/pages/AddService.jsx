@@ -1476,29 +1476,21 @@ export default function AddService() {
                               {billPrefix}
                             </span>
                           )}
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  value={billNo}
+  ref={billInputRef}
+  onChange={(e) => {
+    setBillNo(e.target.value.replace(/\D/g, ""));   // digits only
 
-                          <input
-                            type="text"
-                            value={
-                              billNo
-                            }
-                            ref={billInputRef}
-                            onChange={(
-                              e
-                            ) => {
-                              setBillNo(
-                                e.target
-                                  .value
-                              );
-
-                              setDuplicateBillMsg(
-                                ""
-                              );
-                            }}
-                            placeholder="Enter bill number"
-                            required
-                            className="flex-1 min-w-0 bg-transparent px-3.5 py-2.5 text-sm focus:outline-none"
-                          />
+    setDuplicateBillMsg("");
+  }}
+  placeholder="Enter bill number"
+  required
+  className="flex-1 min-w-0 bg-transparent px-3.5 py-2.5 text-sm focus:outline-none"
+/>
                         </div>
 
                         {billPrefix &&

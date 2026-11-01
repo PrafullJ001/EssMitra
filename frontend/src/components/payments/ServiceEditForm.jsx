@@ -407,20 +407,22 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
             )}
 
             <label className={labelClassName}>Bill No. / बिल क्रमांक *</label>
-            <input
-              type="text"
-              name="billNo"
-              autoComplete="off"
-              ref={billInputRef}
-              value={billNo}
-              onChange={(e) => {
-                setBillNo(e.target.value);
-                setDuplicateBillMsg("");
-              }}
-              placeholder="Enter bill number"
-              required={hasBillNo}
-              className={inputClassName}
-            />
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  name="billNo"
+  autoComplete="off"
+  ref={billInputRef}
+  value={billNo}
+  onChange={(e) => {
+    setBillNo(e.target.value.replace(/\D/g, ""));   // digits only
+    setDuplicateBillMsg("");
+  }}
+  placeholder="Enter bill number"
+  required={hasBillNo}
+  className={inputClassName}
+/>
 
             {billPrefix &&
               billNo.trim() &&
