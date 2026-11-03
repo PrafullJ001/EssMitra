@@ -414,20 +414,22 @@ export default function Profile() {
           >
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-2xl bg-[#FCEDED] text-[#C24949] flex items-center justify-center shrink-0 border border-[#C24949]/10">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-6 h-6"
-                  fill="none"
-                >
-                  <path
-                    d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
+  <svg
+    viewBox="0 0 24 24"
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 3h12" />
+    <path d="M6 8h12" />
+    <path d="m6 13 8.5 8" />
+    <path d="M6 13h3" />
+    <path d="M9 13c6.667 0 6.667-10 0-10" />
+  </svg>
+</div>
 
               <div>
                 <p className="font-bold text-[#1F2A22] text-base leading-tight mb-0.5">
