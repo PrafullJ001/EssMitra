@@ -95,6 +95,30 @@ export default function AddService() {
   const passedFarmer =
     location.state?.farmer || null;
 
+  // "Repeat" from a farmer's service card: the old service's crop, plot name
+  // and area come in pre-filled. Service type, bill no., staff, notes and
+  // payment are NOT copied; the date starts as today and the total bill is
+  // recalculated below from the area and the current rate, as usual.
+  const repeatFrom =
+    passedFarmer && location.state?.repeatFrom
+      ? location.state.repeatFrom
+      : null;
+
+  const repeatAcres =
+    repeatFrom && Number(repeatFrom.acres) > 0
+      ? Number(repeatFrom.acres)
+      : null;
+
+  // When this page was opened with Repeat, the plot size (R and acres) is
+  // copied from the old service and cannot be edited here.
+  const areaLocked = repeatAcres !== null;
+
+  // The crop name is copied from the old service too and cannot be changed.
+  const cropLocked = Boolean(repeatFrom && repeatFrom.cropName);
+
+  const repeatCropKnown =
+    repeatFrom ? CROPS.includes(repeatFrom.cropName) : false;
+
   const [farmer, setFarmer] =
     useState(passedFarmer);
 
@@ -105,10 +129,22 @@ export default function AddService() {
     useState("");
 
   const [cropName, setCropName] =
-    useState("");
+    useState(
+      repeatFrom
+        ? repeatCropKnown
+          ? repeatFrom.cropName
+          : repeatFrom.cropName
+          ? "Other"
+          : ""
+        : ""
+    );
 
   const [cropOther, setCropOther] =
-    useState("");
+    useState(
+      repeatFrom && !repeatCropKnown
+        ? repeatFrom.cropName || ""
+        : ""
+    );
 
   // NEW: inline English-only validation error for the crop "Other" field
   const [cropOtherError, setCropOtherError] =
@@ -130,10 +166,20 @@ export default function AddService() {
   ] = useState("");
 
   const [plotR, setPlotR] =
-    useState("");
+    useState(
+      repeatAcres !== null
+        ? String(
+            Math.round(
+              (repeatAcres * 40 + Number.EPSILON) * 100
+            ) / 100
+          )
+        : ""
+    );
 
   const [acres, setAcres] =
-    useState("");
+    useState(
+      repeatAcres !== null ? String(repeatAcres) : ""
+    );
 
   const [
     areaInputSource,
@@ -200,7 +246,7 @@ export default function AddService() {
   ] = useState("");
 
   const [plotName, setPlotName] =
-    useState("");
+    useState(repeatFrom?.plotName || "");
 
   const [
     ratePerAcre,
@@ -988,6 +1034,17 @@ export default function AddService() {
         />
 
         <div className="relative">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-white/90 bg-white/5 border border-white/10 rounded-xl px-3 py-2 mb-4 hover:bg-white/10 active:scale-95 transition-all duration-200 backdrop-blur-sm w-max"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
+              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </button>
+
           <p className="text-xs text-[#B9D9BE] font-medium tracking-wide uppercase mb-1">
             New Entry
           </p>
@@ -1126,11 +1183,19 @@ export default function AddService() {
                   </div>
                 </Field>
 
-                <Field label="Crop Name / पीक">
+                <Field
+                  label="Crop Name / पीक"
+                  hint={
+                    cropLocked
+                      ? "Copied from the previous service and cannot be changed here"
+                      : undefined
+                  }
+                >
                   <select
                     value={
                       cropName
                     }
+                    disabled={cropLocked}
                     onChange={(
                       e
                     ) =>
@@ -1139,9 +1204,7 @@ export default function AddService() {
                           .value
                       )
                     }
-                    className={
-                      inputClass
-                    }
+                    className={`${inputClass} ${cropLocked ? "cursor-not-allowed opacity-70" : ""}`}
                   >
                     <option value="">
                       Select crop
@@ -1174,7 +1237,8 @@ export default function AddService() {
                           handleCropOtherChange
                         }
                         placeholder="Type crop name"
-                        className={`${inputClass} mt-2`}
+                        readOnly={cropLocked}
+                        className={`${inputClass} mt-2 ${cropLocked ? "cursor-not-allowed opacity-70" : ""}`}
                       />
 
                       {cropOtherError && (
@@ -1232,7 +1296,12 @@ export default function AddService() {
                               .value
                           )
                         }
-                        className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                        readOnly={areaLocked}
+                        className={`w-full border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm ${
+                          areaLocked
+                            ? "bg-[#F6F2E9] text-[#1F2A22]/60 cursor-not-allowed focus:outline-none"
+                            : "bg-white"
+                        }`}
                       />
                     </Field>
 
@@ -1253,15 +1322,20 @@ export default function AddService() {
                               .value
                           )
                         }
-                        className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                        readOnly={areaLocked}
+                        className={`w-full border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm ${
+                          areaLocked
+                            ? "bg-[#F6F2E9] text-[#1F2A22]/60 cursor-not-allowed focus:outline-none"
+                            : "bg-white"
+                        }`}
                       />
                     </Field>
                   </div>
 
                   <p className="text-[11px] text-[#8A968C] mt-2">
-                    40 R = 1 Acre
-                    — enter either
-                    field
+                    {areaLocked
+                      ? "Plot size is copied from the previous service and cannot be changed here"
+                      : "40 R = 1 Acre — enter either field"}
                   </p>
                 </div>
 
@@ -2076,18 +2150,29 @@ export default function AddService() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={
-                  loading ||
-                  exceedsBill
-                }
-                className="w-full bg-[#2B5439] text-white rounded-2xl py-3.5 font-bold text-sm shadow-sm disabled:opacity-50"
-              >
-                {loading
-                  ? "Saving..."
-                  : "Add Service"}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  disabled={loading}
+                  className="flex-1 bg-white border border-black/10 text-[#1F2A22] rounded-2xl py-3.5 font-bold text-sm shadow-sm hover:bg-[#F6F2E9] active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    exceedsBill
+                  }
+                  className="flex-[1.5] bg-[#2B5439] text-white rounded-2xl py-3.5 font-bold text-sm shadow-sm disabled:opacity-50"
+                >
+                  {loading
+                    ? "Saving..."
+                    : "Add Service"}
+                </button>
+              </div>
             </form>
           )}
 

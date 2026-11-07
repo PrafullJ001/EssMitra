@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDate } from "../../utils/formatDate";
 import PaymentForm from "./PaymentForm";
@@ -20,6 +21,7 @@ export default function FarmerHistoryTable({
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const navigate = useNavigate();
 
   const [payingService, setPayingService] = useState(null);
   const [editingService, setEditingService] = useState(null);
@@ -104,6 +106,21 @@ export default function FarmerHistoryTable({
       });
     }
   }, [duplicateBill]);
+
+  // Repeat: opens Add Service for this same farmer with the old service's
+  // crop, plot name and area pre-filled. Nothing is saved here.
+  const handleRepeat = (service) => {
+    navigate("/add-service", {
+      state: {
+        farmer,
+        repeatFrom: {
+          cropName: service.cropName || "",
+          plotName: service.plotName || "",
+          acres: service.acres,
+        },
+      },
+    });
+  };
 
   const startAddBillNo = (service) => {
     setBillNoEditingId(service._id);
@@ -411,7 +428,7 @@ export default function FarmerHistoryTable({
               type="button"
               onClick={applySearch}
               disabled={!draftSearch}
-              className="w-full bg-[#2B5439] text-white rounded-lg py-2 text-[12px] font-bold disabled:opacity-40"
+              className="w-full bg-[#2B5439] text-white rounded-lg py-2 text-[12px] font-bold disabled:opacity-40 enabled:hover:bg-[#234730] enabled:active:bg-[#1F3D2B] enabled:active:scale-[0.98] transition-all"
             >
               Search
             </button>
@@ -492,7 +509,7 @@ export default function FarmerHistoryTable({
               type="button"
               onClick={applyDateFilter}
               disabled={!draftFrom && !draftTo}
-              className="w-full bg-[#2B5439] text-white rounded-lg py-2 text-[12px] font-bold disabled:opacity-40"
+              className="w-full bg-[#2B5439] text-white rounded-lg py-2 text-[12px] font-bold disabled:opacity-40 enabled:hover:bg-[#234730] enabled:active:bg-[#1F3D2B] enabled:active:scale-[0.98] transition-all"
             >
               Apply
             </button>
@@ -546,6 +563,20 @@ export default function FarmerHistoryTable({
         const createdById = typeof s.createdBy === "object" ? s.createdBy?._id : s.createdBy;
         const isOwner = createdById && user?._id && String(createdById) === String(user._id);
         const canEdit = isAdmin || isOwner;
+
+        // Repeat button — same for everyone who can add a service
+        const repeatButton = (
+          <button
+            type="button"
+            onClick={() => handleRepeat(s)}
+            className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#2B5439] bg-[#E9F3E9] border border-[#4C9A5A]/25 rounded-full px-3.5 py-1.5 shadow-sm hover:bg-[#DCEBDC] hover:border-[#4C9A5A]/40 active:scale-95 transition-all"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#4C9A5A]" fill="none" stroke="currentColor" strokeWidth="2.4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M5.6 15A8 8 0 0018.4 17M18.4 9A8 8 0 005.6 7" />
+            </svg>
+            Repeat
+          </button>
+        );
 
         // Payment Progress
         const bill = Number(s.totalBill) || 0;
@@ -696,7 +727,7 @@ export default function FarmerHistoryTable({
   value={billNoDraft}
   onChange={(e) => {
     setBillNoDraft(e.target.value.replace(/\D/g, ""));   // digits only
-    setDuplicateBillMsg("");
+    setDuplicateBill(null);
   }}
   placeholder="Bill no."
   className="w-20 bg-transparent px-2 py-1 text-[12px] font-medium text-[#1F2A22] focus:outline-none"
@@ -940,6 +971,8 @@ export default function FarmerHistoryTable({
               {/* Edit / Delete */}
               {canEdit && (
                 <div className="flex justify-end gap-4 mt-4 pt-3 border-t border-black/5">
+                  {repeatButton}
+
                   {/* Edit */}
                   <button
                     type="button"
@@ -972,7 +1005,9 @@ export default function FarmerHistoryTable({
 
             {/* Edit-only button for staff who own the service — shown when financial section is hidden */}
             {!isAdmin && canEdit && (
-              <div className="border-t border-black/[0.04] px-5 py-3 flex justify-end">
+              <div className="border-t border-black/[0.04] px-5 py-3 flex justify-end gap-4">
+                {repeatButton}
+
                 <button
                   type="button"
                   onClick={() => setEditingService(s)}
@@ -983,6 +1018,13 @@ export default function FarmerHistoryTable({
                   </svg>
                   Edit
                 </button>
+              </div>
+            )}
+
+            {/* Staff who cannot edit this service still get Repeat */}
+            {!isAdmin && !canEdit && (
+              <div className="border-t border-black/[0.04] px-5 py-3 flex justify-end">
+                {repeatButton}
               </div>
             )}
           </div>
