@@ -5,6 +5,16 @@ import { CROPS, SERVICE_TYPES } from "../../constants/serviceOptions";
 import { useAuth } from "../../hooks/useAuth";
 import MathCaptchaModal from "../common/MathCaptchaModal";
 
+// Turns the stored service date (an ISO string) into the YYYY-MM-DD text that
+// <input type="date"> needs, using the phone's local date so it matches the
+// date shown on the service card.
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export default function ServiceEditForm({ service, onSuccess, onCancel }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -14,6 +24,10 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
   const initialR = service.acres ? String(Number(service.acres) * 40) : "";
   const originalBillNo = service.billNo || "";
   const originalAcres = service.acres != null ? String(service.acres) : "";
+  const originalServiceDate = toDateInputValue(service.serviceDate);
+
+  // Service date — editable. Starts on the date already saved for this service.
+  const [serviceDate, setServiceDate] = useState(originalServiceDate);
 
   const [billNo, setBillNo] = useState(service.billNo || "");
   // "Bill No. available?" — same Yes / No choice as Add Service. Starts on
@@ -263,6 +277,12 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
     fd.append("totalBill", totalBill);
     if (notes !== "") fd.append("notes", notes);
 
+    // Only sent when the date was actually changed, so every other edit
+    // behaves exactly as it did before.
+    if (serviceDate && serviceDate !== originalServiceDate) {
+      fd.append("serviceDate", serviceDate);
+    }
+
     lastFormDataRef.current = fd;
 
     // Bill No., Acres, or Guntha (R) changed from what they originally were —
@@ -511,6 +531,19 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
             <p className="text-[11px] text-[#1F2A22]/40 mt-1.5 ml-1">Change village from Farmer Profile</p>
           </div>
         )}
+
+        <div>
+          <label className={labelClassName}>Service Date / सेवा दिनांक *</label>
+          <input
+            type="date"
+            name="serviceDate"
+            autoComplete="off"
+            value={serviceDate}
+            onChange={(e) => setServiceDate(e.target.value)}
+            required
+            className={inputClassName}
+          />
+        </div>
 
         <div>
           <label className={labelClassName}>Crop Name</label>
